@@ -99,3 +99,11 @@ class TTSPreviewResponse(BaseModel):
     voice: str
     audio_url: str
     mime_type: str
+
+
+class RecordingUploadResponse(BaseModel):
+    recording_id: str
+    status: Literal["queued"]
+    object_key: str
+    storage_url: str
+    queue_task_id: str

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -82,11 +83,63 @@ class MentoringRepository:
                     document_id TEXT PRIMARY KEY,
                     filename TEXT NOT NULL,
                     status TEXT NOT NULL,
+                    chunk_count INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS recordings (
+                    recording_id TEXT PRIMARY KEY,
+                    call_id TEXT NOT NULL,
+                    lead_id TEXT NOT NULL,
+                    object_key TEXT NOT NULL,
+                    content_type TEXT NOT NULL,
+                    size_bytes INTEGER NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS async_tasks (
+                    task_id TEXT PRIMARY KEY,
+                    task_type TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    result_json TEXT,
+                    error_message TEXT,
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            self._ensure_column(
+                connection=connection,
+                table_name="knowledge_documents",
+                column_name="chunk_count",
+                column_definition="INTEGER NOT NULL DEFAULT 0",
+            )
             connection.commit()
+
+    def _ensure_column(
+        self,
+        *,
+        connection: sqlite3.Connection,
+        table_name: str,
+        column_name: str,
+        column_definition: str,
+    ) -> None:
+        cursor = connection.cursor()
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        if column_name in existing_columns:
+            return
+        cursor.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+        )
 
     def save_lead(
         self,
@@ -184,10 +237,7 @@ class MentoringRepository:
     def call_exists(self, call_id: str) -> bool:
         with self._connect() as connection:
             cursor = connection.cursor()
-            cursor.execute(
-                "SELECT 1 FROM calls WHERE call_id = ? LIMIT 1",
-                (call_id,),
-            )
+            cursor.execute("SELECT 1 FROM calls WHERE call_id = ? LIMIT 1", (call_id,))
             return cursor.fetchone() is not None
 
     def save_transcript_turns(
@@ -246,10 +296,7 @@ class MentoringRepository:
             )
             rows = cursor.fetchall()
 
-        return [
-            {"speaker": row["speaker"], "utterance": row["utterance"]}
-            for row in rows
-        ]
+        return [{"speaker": row["speaker"], "utterance": row["utterance"]} for row in rows]
 
     def save_assessment(
         self,
@@ -287,7 +334,14 @@ class MentoringRepository:
             )
             connection.commit()
 
-    def save_document(self, *, document_id: str, filename: str, status: str) -> None:
+    def save_document(
+        self,
+        *,
+        document_id: str,
+        filename: str,
+        status: str,
+        chunk_count: int = 0,
+    ) -> None:
         with self._connect() as connection:
             cursor = connection.cursor()
             cursor.execute(
@@ -296,9 +350,300 @@ class MentoringRepository:
                     document_id,
                     filename,
                     status,
+                    chunk_count,
                     created_at
-                ) VALUES (?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?)
                 """,
-                (document_id, filename, status, _utc_now()),
+                (document_id, filename, status, chunk_count, _utc_now()),
             )
             connection.commit()
+
+    def save_recording(
+        self,
+        *,
+        call_id: str,
+        lead_id: str,
+        object_key: str,
+        content_type: str,
+        size_bytes: int,
+    ) -> str:
+        recording_id = str(uuid4())
+        with self._connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                INSERT INTO recordings (
+                    recording_id,
+                    call_id,
+                    lead_id,
+                    object_key,
+                    content_type,
+                    size_bytes,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    recording_id,
+                    call_id,
+                    lead_id,
+                    object_key,
+                    content_type,
+                    size_bytes,
+                    _utc_now(),
+                ),
+            )
+            connection.commit()
+        return recording_id
+
+    def create_async_task(self, *, task_type: str, payload: dict[str, object]) -> str:
+        task_id = str(uuid4())
+        now = _utc_now()
+        with self._connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                INSERT INTO async_tasks (
+                    task_id,
+                    task_type,
+                    payload_json,
+                    status,
+                    result_json,
+                    error_message,
+                    attempts,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    task_id,
+                    task_type,
+                    json.dumps(payload, ensure_ascii=False),
+                    "queued",
+                    None,
+                    None,
+                    0,
+                    now,
+                    now,
+                ),
+            )
+            connection.commit()
+        return task_id
+
+    def get_async_task(self, task_id: str) -> dict[str, object] | None:
+        with self._connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                SELECT task_id, task_type, payload_json, status, result_json, error_message, attempts, created_at, updated_at
+                FROM async_tasks
+                WHERE task_id = ?
+                """,
+                (task_id,),
+            )
+            row = cursor.fetchone()
+
+        if row is None:
+            return None
+
+        return self._task_row_to_dict(row)
+
+    def list_async_tasks(self, *, limit: int = 30) -> list[dict[str, object]]:
+        with self._connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                SELECT task_id, task_type, payload_json, status, result_json, error_message, attempts, created_at, updated_at
+                FROM async_tasks
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+        return [self._task_row_to_dict(row) for row in rows]
+
+    def list_queued_tasks_for_worker(self, *, limit: int = 10) -> list[dict[str, object]]:
+        with self._connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                SELECT task_id, task_type, payload_json, status, result_json, error_message, attempts, created_at, updated_at
+                FROM async_tasks
+                WHERE status = ?
+                ORDER BY created_at ASC
+                LIMIT ?
+                """,
+                ("queued", limit),
+            )
+            rows = cursor.fetchall()
+        return [self._task_row_to_dict(row) for row in rows]
+
+    def mark_task_processing(self, *, task_id: str) -> None:
+        with self._connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                UPDATE async_tasks
+                SET status = ?, attempts = attempts + 1, result_json = NULL, error_message = NULL, updated_at = ?
+                WHERE task_id = ?
+                """,
+                ("processing", _utc_now(), task_id),
+            )
+            connection.commit()
+
+    def mark_task_done(self, *, task_id: str, result: dict[str, object]) -> None:
+        with self._connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                UPDATE async_tasks
+                SET status = ?, result_json = ?, error_message = NULL, updated_at = ?
+                WHERE task_id = ?
+                """,
+                ("done", json.dumps(result, ensure_ascii=False), _utc_now(), task_id),
+            )
+            connection.commit()
+
+    def mark_task_failed(self, *, task_id: str, error_message: str) -> None:
+        with self._connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                UPDATE async_tasks
+                SET status = ?, error_message = ?, updated_at = ?
+                WHERE task_id = ?
+                """,
+                ("failed", error_message, _utc_now(), task_id),
+            )
+            connection.commit()
+
+    def mark_task_requeued(self, *, task_id: str, error_message: str) -> None:
+        with self._connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                UPDATE async_tasks
+                SET status = ?, error_message = ?, updated_at = ?
+                WHERE task_id = ?
+                """,
+                ("queued", error_message, _utc_now(), task_id),
+            )
+            connection.commit()
+
+    def get_dashboard_metrics(
+        self,
+        *,
+        period_days: int = 7,
+    ) -> dict[str, float | int | list[dict[str, int | str]]]:
+        today_utc = datetime.now(timezone.utc).date()
+        period_start = today_utc - timedelta(days=period_days - 1)
+        since_iso = datetime.combine(period_start, time.min, tzinfo=timezone.utc).isoformat()
+
+        with self._connect() as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("SELECT COUNT(*) AS count FROM leads")
+            total_leads = int(cursor.fetchone()["count"])
+
+            cursor.execute("SELECT COUNT(DISTINCT lead_id) AS count FROM calls")
+            leads_with_calls = int(cursor.fetchone()["count"])
+
+            cursor.execute("SELECT COUNT(DISTINCT lead_id) AS count FROM assessments")
+            leads_with_assessments = int(cursor.fetchone()["count"])
+
+            cursor.execute("SELECT AVG(score) AS avg_score FROM assessments")
+            avg_score_value = cursor.fetchone()["avg_score"]
+            avg_assessment_score = float(avg_score_value) if avg_score_value is not None else 0.0
+
+            cursor.execute(
+                """
+                SELECT status, COUNT(*) AS count
+                FROM async_tasks
+                GROUP BY status
+                """
+            )
+            task_rows = cursor.fetchall()
+            task_counts = {row["status"]: int(row["count"]) for row in task_rows}
+
+            daily_leads = self._count_by_day(
+                cursor=cursor,
+                table_name="leads",
+                since_iso=since_iso,
+            )
+            daily_calls = self._count_by_day(
+                cursor=cursor,
+                table_name="calls",
+                since_iso=since_iso,
+            )
+            daily_assessments = self._count_by_day(
+                cursor=cursor,
+                table_name="assessments",
+                since_iso=since_iso,
+            )
+
+        conversion_rate = (leads_with_calls / total_leads) if total_leads > 0 else 0.0
+        completion_rate = (
+            (leads_with_assessments / leads_with_calls) if leads_with_calls > 0 else 0.0
+        )
+        series: list[dict[str, int | str]] = []
+        for offset in range(period_days):
+            current_date = period_start + timedelta(days=offset)
+            date_key = current_date.isoformat()
+            series.append(
+                {
+                    "date": date_key,
+                    "leads": daily_leads.get(date_key, 0),
+                    "calls": daily_calls.get(date_key, 0),
+                    "assessments": daily_assessments.get(date_key, 0),
+                }
+            )
+
+        return {
+            "total_leads": total_leads,
+            "leads_with_calls": leads_with_calls,
+            "leads_with_assessments": leads_with_assessments,
+            "conversion_rate": conversion_rate,
+            "completion_rate": completion_rate,
+            "avg_assessment_score": avg_assessment_score,
+            "queued_tasks": task_counts.get("queued", 0),
+            "processing_tasks": task_counts.get("processing", 0),
+            "failed_tasks": task_counts.get("failed", 0),
+            "period_days": period_days,
+            "series": series,
+        }
+
+    def _task_row_to_dict(self, row: sqlite3.Row) -> dict[str, object]:
+        payload_json = row["payload_json"]
+        result_json = row["result_json"]
+        return {
+            "task_id": row["task_id"],
+            "task_type": row["task_type"],
+            "payload": json.loads(payload_json) if payload_json else {},
+            "status": row["status"],
+            "result": json.loads(result_json) if result_json else None,
+            "error_message": row["error_message"],
+            "attempts": int(row["attempts"]),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+
+    def _count_by_day(
+        self,
+        *,
+        cursor: sqlite3.Cursor,
+        table_name: str,
+        since_iso: str,
+    ) -> dict[str, int]:
+        if table_name not in {"leads", "calls", "assessments"}:
+            raise ValueError(f"Unsupported table for daily count: {table_name}")
+
+        cursor.execute(
+            f"""
+            SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS count
+            FROM {table_name}
+            WHERE created_at >= ?
+            GROUP BY day
+            """,
+            (since_iso,),
+        )
+        return {row["day"]: int(row["count"]) for row in cursor.fetchall()}

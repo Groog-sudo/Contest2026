@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, UploadFile
 
 from app.core.config import Settings, get_settings
 from app.schemas.call import (
@@ -6,10 +6,12 @@ from app.schemas.call import (
     CallRequestResponse,
     CallTranscriptIngestRequest,
     CallTranscriptIngestResponse,
+    RecordingUploadResponse,
     TTSPreviewRequest,
     TTSPreviewResponse,
 )
 from app.services.mentoring_service import MentoringService
+from app.workers.queue_worker import run_queue_worker_once
 
 router = APIRouter()
 
@@ -39,3 +41,22 @@ async def preview_tts(
 ) -> TTSPreviewResponse:
     service = MentoringService(settings)
     return service.create_tts_preview(payload)
+
+
+@router.post("/recordings/upload", response_model=RecordingUploadResponse)
+async def upload_recording(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    call_id: str = Form(...),
+    lead_id: str = Form(...),
+    settings: Settings = Depends(get_settings),
+) -> RecordingUploadResponse:
+    service = MentoringService(settings)
+    response = await service.upload_recording_and_enqueue(
+        file=file,
+        call_id=call_id,
+        lead_id=lead_id,
+    )
+    if settings.queue_auto_process:
+        background_tasks.add_task(run_queue_worker_once, settings, 1)
+    return response
