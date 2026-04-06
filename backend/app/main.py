@@ -9,9 +9,13 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="AI Education RAG API",
-        description="Contest-ready FastAPI backend scaffold for an AI education RAG assistant.",
-        version="0.1.0",
+        title="AI Mentoring Call API",
+        description=(
+            "Contest-ready FastAPI backend scaffold for capturing learner leads, "
+            "preparing RAG-based mentoring scripts, ingesting STT transcripts, "
+            "generating TTS previews, and storing mentoring outcomes."
+        ),
+        version="0.2.0",
     )
 
     app.add_middleware(
@@ -27,4 +31,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-

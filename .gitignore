@@ -9,6 +9,7 @@ backend/__pycache__/
 backend/.pytest_cache/
 backend/.mypy_cache/
 backend/.ruff_cache/
+backend/data/
 backend/app/**/__pycache__/
 backend/tests/**/__pycache__/
 
@@ -22,4 +23,3 @@ backend/.env
 Thumbs.db
 .idea/
 .vscode/
-

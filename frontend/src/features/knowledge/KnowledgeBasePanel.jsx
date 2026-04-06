@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ApiRequestError, uploadDocument } from '../../lib/api.js';
+import { ApiRequestError, uploadKnowledgeDocument } from '../../lib/api.js';
 
-export default function UploadPanel() {
+export default function KnowledgeBasePanel() {
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -20,18 +20,18 @@ export default function UploadPanel() {
     setIsUploading(true);
 
     try {
-      const response = await uploadDocument(file);
+      const response = await uploadKnowledgeDocument(file);
       setMessage(
         response.status === 'accepted'
-          ? `문서가 접수되었습니다. document_id=${response.document_id}`
-          : '문서는 접수되었지만 Pinecone 연동 전이라 실제 색인은 아직 수행되지 않았습니다.',
+          ? `멘토링 지식 문서가 접수되었습니다. document_id=${response.document_id}`
+          : '문서는 접수되었지만 아직 RAG 지식베이스 연결 전이라 실제 색인은 대기 상태입니다.',
       );
       setFile(null);
     } catch (caughtError) {
       if (caughtError instanceof ApiRequestError) {
         setError(caughtError.message);
       } else {
-        setError('문서 업로드 중 오류가 발생했습니다.');
+        setError('멘토링 자료 업로드 중 오류가 발생했습니다.');
       }
     } finally {
       setIsUploading(false);
@@ -40,10 +40,10 @@ export default function UploadPanel() {
 
   return (
     <section className="rounded-[28px] border border-white/10 bg-white/8 p-6 shadow-xl shadow-slate-950/20 backdrop-blur">
-      <h2 className="text-xl font-semibold text-white">문서 업로드</h2>
+      <h2 className="text-xl font-semibold text-white">멘토링 지식베이스 업로드</h2>
       <p className="mt-2 text-sm leading-6 text-slate-300">
-        강의자료, 학습 가이드, 운영 문서를 업로드해 RAG 파이프라인에 연결할 수
-        있는 시작점입니다.
+        상담 스크립트가 참고할 커리큘럼, FAQ, 수강 후기, 운영 가이드를 업로드하는
+        영역입니다.
       </p>
 
       <form className="mt-5 space-y-4" onSubmit={handleUpload}>
@@ -63,7 +63,7 @@ export default function UploadPanel() {
           disabled={isUploading}
           type="submit"
         >
-          {isUploading ? '업로드 중...' : '문서 업로드'}
+          {isUploading ? '업로드 중...' : '지식 문서 업로드'}
         </button>
       </form>
 
@@ -73,7 +73,10 @@ export default function UploadPanel() {
         ) : message ? (
           <p>{message}</p>
         ) : (
-          <p>PDF, TXT, DOCX 등 교육용 문서를 연결하는 확장 지점으로 활용할 수 있습니다.</p>
+          <p>
+            상담 플레이북, 과정 소개서, 취업 사례집처럼 통화 품질을 높이는 자료를
+            연결하는 확장 지점입니다.
+          </p>
         )}
       </div>
     </section>

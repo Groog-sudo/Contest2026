@@ -23,17 +23,21 @@ export default function SetupGuide({ apiBaseUrl, backendStatus }) {
         <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4">
           <p className="font-medium text-white">환경 변수</p>
           <p className="mt-2">
-            프론트엔드는 `VITE_API_BASE_URL`, 백엔드는 `OPENAI_API_KEY`,
-            `PINECONE_API_KEY`, `PINECONE_INDEX_NAME`,
-            `PINECONE_NAMESPACE`, `FRONTEND_ORIGIN`을 사용합니다.
+            프론트엔드는 `VITE_API_BASE_URL`, 백엔드는 `APP_DB_PATH`,
+            `OPENAI_API_KEY`, `PINECONE_API_KEY`, `PINECONE_INDEX_NAME`,
+            `PINECONE_NAMESPACE`, `STT_PROVIDER_NAME`, `STT_PROVIDER_API_KEY`,
+            `TTS_PROVIDER_NAME`, `TTS_PROVIDER_API_KEY`, `CALL_PROVIDER_NAME`,
+            `CALL_PROVIDER_API_KEY`, `OUTBOUND_CALL_FROM_NUMBER`,
+            `FRONTEND_ORIGIN`을 사용합니다.
           </p>
         </div>
 
         <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4">
           <p className="font-medium text-white">현재 동작 방식</p>
           <p className="mt-2">
-            API 키 없이도 앱은 실행됩니다. 다만 RAG 색인과 실제 생성 응답은
-            아직 연결되지 않아 안내형 메시지가 반환됩니다.
+            API 키 없이도 앱은 실행됩니다. 다만 현재는 상담 리드 접수와 콜
+            스크립트 초안 생성, 전사 적재, 레벨 추천 중심으로 동작하며, 실 STT/TTS
+            및 통신 연동 전에는 `mock` 결과를 반환합니다.
           </p>
         </div>
       </div>
