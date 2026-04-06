@@ -71,6 +71,20 @@ export async function requestMentoringCall(payload) {
   return parseResponse(response);
 }
 
+export async function uploadCallRecording({ callId, leadId, file }) {
+  const formData = new FormData();
+  formData.append('call_id', callId);
+  formData.append('lead_id', leadId);
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/calls/recordings/upload`, {
+    body: formData,
+    method: 'POST',
+  });
+
+  return parseResponse(response);
+}
+
 export async function ingestCallTranscript(payload) {
   const response = await fetch(`${API_BASE_URL}/api/v1/calls/transcripts/ingest`, {
     body: JSON.stringify(payload),
@@ -104,6 +118,39 @@ export async function evaluateLevelTest(payload) {
     method: 'POST',
   });
 
+  return parseResponse(response);
+}
+
+export async function fetchDashboardMetrics(periodDays = 7) {
+  const query = new URLSearchParams({ period_days: String(periodDays) });
+  const response = await fetch(`${API_BASE_URL}/api/v1/dashboard/metrics?${query.toString()}`);
+  return parseResponse(response);
+}
+
+export async function fetchQueueTasks() {
+  const response = await fetch(`${API_BASE_URL}/api/v1/queue/tasks`);
+  return parseResponse(response);
+}
+
+export async function processQueueTask(taskId) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/queue/process`, {
+    body: JSON.stringify({ task_id: taskId }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    method: 'POST',
+  });
+  return parseResponse(response);
+}
+
+export async function runQueueWorker(limit = 10) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/queue/workers/run`, {
+    body: JSON.stringify({ limit }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    method: 'POST',
+  });
   return parseResponse(response);
 }
 

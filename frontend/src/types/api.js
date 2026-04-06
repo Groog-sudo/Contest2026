@@ -108,4 +108,72 @@
  * @property {string[]} rag_context_ids
  */
 
+/**
+ * @typedef {Object} RecordingUploadResponse
+ * @property {string} recording_id
+ * @property {'queued'} status
+ * @property {string} object_key
+ * @property {string} storage_url
+ * @property {string} queue_task_id
+ */
+
+/**
+ * @typedef {Object} DashboardSeriesPoint
+ * @property {string} date
+ * @property {number} leads
+ * @property {number} calls
+ * @property {number} assessments
+ */
+
+/**
+ * @typedef {Object} DashboardMetricsResponse
+ * @property {number} total_leads
+ * @property {number} leads_with_calls
+ * @property {number} leads_with_assessments
+ * @property {number} conversion_rate
+ * @property {number} completion_rate
+ * @property {number} avg_assessment_score
+ * @property {number} queued_tasks
+ * @property {number} processing_tasks
+ * @property {number} failed_tasks
+ * @property {number} period_days
+ * @property {DashboardSeriesPoint[]} series
+ */
+
+/**
+ * @typedef {Object} QueueTaskItem
+ * @property {string} task_id
+ * @property {string} task_type
+ * @property {'queued' | 'processing' | 'done' | 'failed'} status
+ * @property {number} attempts
+ * @property {Object} payload
+ * @property {Object | null | undefined} [result]
+ * @property {string | null | undefined} [error_message]
+ * @property {string} created_at
+ * @property {string} updated_at
+ */
+
+/**
+ * @typedef {Object} QueueTaskListResponse
+ * @property {QueueTaskItem[]} items
+ */
+
+/**
+ * @typedef {Object} QueueTaskProcessResponse
+ * @property {string} task_id
+ * @property {'done' | 'failed'} status
+ * @property {Object | null | undefined} [result]
+ * @property {string | null | undefined} [error_message]
+ * @property {boolean | undefined} [retry_queued]
+ */
+
+/**
+ * @typedef {Object} QueueWorkerRunResponse
+ * @property {number} requested_limit
+ * @property {number} processed
+ * @property {number} succeeded
+ * @property {number} failed
+ * @property {number} requeued
+ */
+
 export {};
