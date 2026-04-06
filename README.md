@@ -6,7 +6,7 @@ AI 활용 차세대 교육 솔루션 공모전을 위한 연락처 기반 AI 전
 | --- | --- |
 | 버전 | `0.3.0` |
 | 최종 수정일 | `2026-04-06` |
-| 현재 상태 | 리드 접수/콜 요청/STT 전사 저장/TTS 프리뷰/레벨테스트 추천 스캐폴드 구현 완료 |
+| 현재 상태 | 리드 접수/콜 요청/녹취 업로드 큐/STT 전사 저장/TTS 프리뷰/레벨테스트/운영 대시보드(기간 필터·시계열) 구현 완료 |
 
 ## 1. 프로젝트 개요
 
@@ -25,9 +25,14 @@ AI 활용 차세대 교육 솔루션 공모전을 위한 연락처 기반 AI 전
 - `GET /api/v1/health`
 - `POST /api/v1/leads/register`
 - `POST /api/v1/calls/request`
+- `POST /api/v1/calls/recordings/upload`
 - `POST /api/v1/calls/transcripts/ingest`
 - `POST /api/v1/calls/tts/preview`
 - `POST /api/v1/assessments/level-test`
+- `GET /api/v1/dashboard/metrics`
+- `GET /api/v1/queue/tasks`
+- `POST /api/v1/queue/process`
+- `POST /api/v1/queue/workers/run`
 - `POST /api/v1/documents/upload`
 
 ### 데이터 저장
@@ -39,12 +44,18 @@ AI 활용 차세대 교육 솔루션 공모전을 위한 연락처 기반 AI 전
   - `call_transcript_turns`
   - `assessments`
   - `knowledge_documents`
+  - `recordings`
+  - `async_tasks`
 
 ### AI/통신 확장 포인트
 
 - STT 클라이언트 스텁: `backend/app/clients/stt_client.py`
 - TTS 클라이언트 스텁: `backend/app/clients/tts_client.py`
+- Object Storage 클라이언트: `backend/app/clients/storage_client.py`
 - 통신사 발신 연동은 환경 변수 기반 구조만 반영 (실 호출은 후속 구현)
+- 큐 처리 API: `backend/app/api/v1/endpoints/queue.py`
+- 큐 워커 모듈: `backend/app/workers/queue_worker.py`
+- 대시보드 집계 API: `backend/app/api/v1/endpoints/dashboard.py`
 
 ## 3. 디렉터리 구조
 
@@ -82,13 +93,26 @@ Contest2026/
 | `VITE_API_BASE_URL` | Frontend | 백엔드 API 주소 |
 | `APP_DB_PATH` | Backend | SQLite 파일 경로 |
 | `OPENAI_API_KEY` | Backend | 생성형 AI 연동 키 |
+| `OPENAI_EMBEDDING_MODEL` | Backend | 임베딩 모델 |
+| `OPENAI_STT_MODEL` | Backend | OpenAI STT 모델 |
+| `OPENAI_TTS_MODEL` | Backend | OpenAI TTS 모델 |
 | `PINECONE_API_KEY` | Backend | Pinecone 연동 키 |
 | `PINECONE_INDEX_NAME` | Backend | Pinecone 인덱스 이름 |
 | `PINECONE_NAMESPACE` | Backend | Pinecone namespace |
+| `OBJECT_STORAGE_PROVIDER` | Backend | 녹취 저장소 타입 (`local`/`s3`) |
+| `OBJECT_STORAGE_BUCKET` | Backend | S3 버킷 이름 |
+| `OBJECT_STORAGE_REGION` | Backend | S3 리전 |
+| `OBJECT_STORAGE_ENDPOINT_URL` | Backend | S3 호환 엔드포인트 |
+| `OBJECT_STORAGE_ACCESS_KEY` | Backend | 저장소 액세스 키 |
+| `OBJECT_STORAGE_SECRET_KEY` | Backend | 저장소 시크릿 키 |
+| `OBJECT_STORAGE_LOCAL_DIR` | Backend | 로컬 저장소 경로 |
+| `OBJECT_STORAGE_PUBLIC_BASE_URL` | Backend | 공개 URL 베이스 |
 | `STT_PROVIDER_NAME` | Backend | STT 프로바이더 식별자 |
 | `STT_PROVIDER_API_KEY` | Backend | STT API 키 |
 | `TTS_PROVIDER_NAME` | Backend | TTS 프로바이더 식별자 |
 | `TTS_PROVIDER_API_KEY` | Backend | TTS API 키 |
+| `QUEUE_AUTO_PROCESS` | Backend | 녹취 업로드 시 큐 자동 처리 여부 |
+| `QUEUE_MAX_ATTEMPTS` | Backend | 큐 재시도 한도(실제 처리 로직 적용) |
 | `CALL_PROVIDER_NAME` | Backend | 발신 프로바이더 식별자 |
 | `CALL_PROVIDER_API_KEY` | Backend | 발신 API 키 |
 | `OUTBOUND_CALL_FROM_NUMBER` | Backend | 발신 번호 |
@@ -117,7 +141,7 @@ uvicorn app.main:app --reload
 ## 6. 검증 상태
 
 - Frontend: `npm run build` 통과
-- Backend: `pytest -q` 통과 (`10 passed`)
+- Backend: `python -m pytest -q` 통과 (`14 passed`)
 
 ## 7. 문서 링크
 
@@ -133,10 +157,12 @@ uvicorn app.main:app --reload
 | 2026-04-06 | AI | 리드 접수/콜 요청 중심으로 도메인 전환 | 교육 RAG 데모에서 상담 도메인으로 전환 |
 | 2026-04-06 | AI | STT/TTS/상담기록 DB 연동 기반 백엔드 확장<br>`/api/v1/calls/transcripts/ingest`, `/api/v1/calls/tts/preview`, `/api/v1/assessments/level-test` 추가<br>SQLite Repository(`leads`, `calls`, `call_transcript_turns`, `assessments`, `knowledge_documents`) 반영 | `pytest -q` 10개 통과 |
 | 2026-04-06 | AI | 문서/운영 워크플로우 동기화<br>`README.md`, `docs/architecture.md`, `docs/api-specification.md`, `docs/ai-report-outline.md`를 최신 설계로 갱신<br>`.agent/workflows/*`를 STT/TTS/DB/레벨평가 기준으로 업데이트 | `npm run build` 통과 |
+| 2026-04-06 | AI | 운영 대시보드/큐 처리 흐름 추가<br>`/api/v1/dashboard/metrics`, `/api/v1/queue/tasks`, `/api/v1/queue/process`, `/api/v1/calls/recordings/upload` 반영<br>프론트 `MetricsPanel` 연결 및 큐 수동 처리 버튼 추가 | Backend `13 passed`, Frontend `build` 통과 |
+| 2026-04-06 | AI | 큐 워커 분리/재시도 정책 및 기간 필터 시계열 대시보드 반영<br>`/api/v1/queue/workers/run`, `QUEUE_MAX_ATTEMPTS` 적용, `GET /api/v1/dashboard/metrics?period_days=7|14|30` 확장<br>프론트 대시보드에 기간 선택/시계열 막대 차트/워커 실행 버튼 추가 | Backend `14 passed`, Frontend `build` 통과 |
 
 ## 9. 다음 단계 제안
 
 1. 실 STT/TTS 프로바이더 SDK 연동
-2. 통화 녹취 원본 저장소(S3/Blob) 및 비동기 처리 큐 도입
+2. 큐 워커를 외부 스케줄러(Cron/APScheduler/Cloud Scheduler)와 연결해 상시 처리
 3. 커리큘럼 문서 + 상담 메모리 하이브리드 RAG 검색 고도화
-4. 추천 결과의 전환율/완주율 지표 추적 대시보드 추가
+4. 대시보드 지표에 과정/상담원/유입채널 필터 및 CSV 내보내기 추가

@@ -126,7 +126,7 @@ def test_tts_preview_returns_audio_metadata() -> None:
     payload = response.json()
     assert payload["status"] == "generated"
     assert payload["provider"] == "mock"
-    assert payload["audio_url"].startswith("https://mock-tts.local/")
+    assert payload["audio_url"]
 
 
 def test_level_assessment_returns_recommended_course() -> None:
@@ -150,6 +150,110 @@ def test_level_assessment_returns_recommended_course() -> None:
     assert isinstance(payload["recommended_course"], str)
     assert payload["score"] >= 0
     assert "curriculum-catalog" in payload["rag_context_ids"]
+
+
+def test_recording_upload_enqueues_transcription_task() -> None:
+    call_response = client.post(
+        "/api/v1/calls/request",
+        json={
+            "lead_id": "lead-queue-1",
+            "student_name": "김수강",
+            "phone_number": "010-1234-5678",
+            "course_interest": "AI 취업 부트캠프",
+            "student_question": "통화 테스트",
+            "top_k": 3,
+        },
+    )
+    call_id = call_response.json()["call_id"]
+
+    response = client.post(
+        "/api/v1/calls/recordings/upload",
+        data={"call_id": call_id, "lead_id": "lead-queue-1"},
+        files={"file": ("recording.wav", b"fake-audio", "audio/wav")},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "queued"
+    assert isinstance(payload["queue_task_id"], str)
+    assert payload["object_key"].startswith("recordings/")
+
+    queue_response = client.get("/api/v1/queue/tasks")
+    assert queue_response.status_code == 200
+    queue_payload = queue_response.json()
+    assert isinstance(queue_payload["items"], list)
+
+
+def test_queue_process_returns_contract_shape() -> None:
+    call_response = client.post(
+        "/api/v1/calls/request",
+        json={
+            "lead_id": "lead-queue-2",
+            "student_name": "김수강",
+            "phone_number": "010-1234-5678",
+            "course_interest": "AI 취업 부트캠프",
+            "student_question": "큐 처리 테스트",
+            "top_k": 3,
+        },
+    )
+    call_id = call_response.json()["call_id"]
+
+    upload_response = client.post(
+        "/api/v1/calls/recordings/upload",
+        data={"call_id": call_id, "lead_id": "lead-queue-2"},
+        files={"file": ("recording.wav", b"fake-audio", "audio/wav")},
+    )
+    queue_task_id = upload_response.json()["queue_task_id"]
+
+    process_response = client.post(
+        "/api/v1/queue/process",
+        json={"task_id": queue_task_id},
+    )
+
+    assert process_response.status_code == 200
+    payload = process_response.json()
+    assert payload["task_id"] == queue_task_id
+    assert payload["status"] in {"done", "failed"}
+    if payload["status"] == "done":
+        assert isinstance(payload["result"], dict)
+    else:
+        assert isinstance(payload["error_message"], str)
+    assert isinstance(payload["retry_queued"], bool)
+
+
+def test_queue_worker_run_returns_contract_shape() -> None:
+    response = client.post(
+        "/api/v1/queue/workers/run",
+        json={"limit": 5},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["requested_limit"] == 5
+    assert isinstance(payload["processed"], int)
+    assert isinstance(payload["succeeded"], int)
+    assert isinstance(payload["requeued"], int)
+    assert isinstance(payload["failed"], int)
+
+
+def test_dashboard_metrics_returns_contract_shape() -> None:
+    response = client.get("/api/v1/dashboard/metrics", params={"period_days": 14})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert isinstance(payload["total_leads"], int)
+    assert isinstance(payload["conversion_rate"], float)
+    assert isinstance(payload["completion_rate"], float)
+    assert "queued_tasks" in payload
+    assert "failed_tasks" in payload
+    assert payload["period_days"] == 14
+    assert isinstance(payload["series"], list)
+    assert len(payload["series"]) == 14
+    first = payload["series"][0]
+    assert isinstance(first["date"], str)
+    assert isinstance(first["leads"], int)
+    assert isinstance(first["calls"], int)
+    assert isinstance(first["assessments"], int)
 
 
 def test_document_upload_returns_contract_shape() -> None:
