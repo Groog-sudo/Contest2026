@@ -125,13 +125,14 @@ uvicorn app.main:app --reload
 - API 명세: [`docs/api-specification.md`](docs/api-specification.md)
 - AI 리포트 템플릿: [`docs/ai-report-outline.md`](docs/ai-report-outline.md)
 
-## 8. 작업 기록
+## 8. 날짜별 작업 기록
 
 | 날짜 | 담당 | 작업 내용 | 비고 |
 | --- | --- | --- | --- |
 | 2026-04-06 | AI | 프로젝트 초기 스캐폴드 구성 (Frontend/Backend/문서) | 기본 구조 |
 | 2026-04-06 | AI | 리드 접수/콜 요청 중심으로 도메인 전환 | 교육 RAG 데모에서 상담 도메인으로 전환 |
-| 2026-04-06 | AI | STT/TTS/상담기록 DB/레벨테스트 추천 API 및 문서 반영 | `pytest -q` 10개 통과 |
+| 2026-04-06 | AI | STT/TTS/상담기록 DB 연동 기반 백엔드 확장<br>`/api/v1/calls/transcripts/ingest`, `/api/v1/calls/tts/preview`, `/api/v1/assessments/level-test` 추가<br>SQLite Repository(`leads`, `calls`, `call_transcript_turns`, `assessments`, `knowledge_documents`) 반영 | `pytest -q` 10개 통과 |
+| 2026-04-06 | AI | 문서/운영 워크플로우 동기화<br>`README.md`, `docs/architecture.md`, `docs/api-specification.md`, `docs/ai-report-outline.md`를 최신 설계로 갱신<br>`.agent/workflows/*`를 STT/TTS/DB/레벨평가 기준으로 업데이트 | `npm run build` 통과 |
 
 ## 9. 다음 단계 제안
 
