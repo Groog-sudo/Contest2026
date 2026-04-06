@@ -5,6 +5,7 @@
 > Base URL: `http://localhost:8000/api/v1`  
 > 최종 수정일: `2026-04-06`  
 > 상태: 구현 반영 완료 (스캐폴드 + DB 저장 + 큐 워커/재시도 + 기간 시계열 대시보드)
+> 음성 처리 상세 문서: `docs/media-pipeline-spec.md`
 
 ---
 

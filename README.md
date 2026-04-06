@@ -64,6 +64,7 @@ Contest2026/
 ├── docs/
 │   ├── architecture.md
 │   ├── api-specification.md
+│   ├── media-pipeline-spec.md
 │   └── ai-report-outline.md
 ├── frontend/
 │   ├── src/
@@ -118,6 +119,30 @@ Contest2026/
 | `OUTBOUND_CALL_FROM_NUMBER` | Backend | 발신 번호 |
 | `FRONTEND_ORIGIN` | Backend | CORS 허용 오리진 |
 
+### 4.1 STT/TTS/녹취 파이프라인 요약 명세
+
+| 항목 | 현재 구현 |
+| --- | --- |
+| STT provider | `mock`, `openai`, 기타 placeholder |
+| TTS provider | `mock`, `openai`, 기타 placeholder |
+| STT 키 우선순위 | `STT_PROVIDER_API_KEY` -> `OPENAI_API_KEY` |
+| TTS 키 우선순위 | `TTS_PROVIDER_API_KEY` -> `OPENAI_API_KEY` |
+| STT 모델 | `OPENAI_STT_MODEL` (기본 `gpt-4o-mini-transcribe`) |
+| TTS 모델 | `OPENAI_TTS_MODEL` (기본 `gpt-4o-mini-tts`) |
+| 녹취 저장 키 | `recordings/{lead_id}/{call_id}/{uuid}{ext}` |
+| TTS 프리뷰 키 | `tts-previews/{uuid}.mp3` |
+| 큐 작업 타입 | `stt_transcription` |
+| 큐 재시도 | 실패 시 `attempts + 1 < QUEUE_MAX_ATTEMPTS`이면 재큐잉 |
+
+파이프라인 흐름:
+
+1. `POST /api/v1/calls/recordings/upload`로 녹취 업로드
+2. Object Storage 저장 후 `recordings` 메타데이터 저장
+3. `async_tasks`에 STT 작업(`queued`) 생성
+4. 워커(`/api/v1/queue/workers/run` 또는 자동 처리) 실행
+5. 전사 결과를 `call_transcript_turns`에 저장
+6. 필요 시 `POST /api/v1/calls/tts/preview`로 스크립트 음성 프리뷰 생성
+
 ## 5. 실행 방법
 
 ### Frontend
@@ -147,6 +172,7 @@ uvicorn app.main:app --reload
 
 - 아키텍처: [`docs/architecture.md`](docs/architecture.md)
 - API 명세: [`docs/api-specification.md`](docs/api-specification.md)
+- 음성 파이프라인 상세(STT/TTS/Storage/Queue): [`docs/media-pipeline-spec.md`](docs/media-pipeline-spec.md)
 - AI 리포트 템플릿: [`docs/ai-report-outline.md`](docs/ai-report-outline.md)
 
 ## 8. 날짜별 작업 기록
@@ -159,6 +185,7 @@ uvicorn app.main:app --reload
 | 2026-04-06 | AI | 문서/운영 워크플로우 동기화<br>`README.md`, `docs/architecture.md`, `docs/api-specification.md`, `docs/ai-report-outline.md`를 최신 설계로 갱신<br>`.agent/workflows/*`를 STT/TTS/DB/레벨평가 기준으로 업데이트 | `npm run build` 통과 |
 | 2026-04-06 | AI | 운영 대시보드/큐 처리 흐름 추가<br>`/api/v1/dashboard/metrics`, `/api/v1/queue/tasks`, `/api/v1/queue/process`, `/api/v1/calls/recordings/upload` 반영<br>프론트 `MetricsPanel` 연결 및 큐 수동 처리 버튼 추가 | Backend `13 passed`, Frontend `build` 통과 |
 | 2026-04-06 | AI | 큐 워커 분리/재시도 정책 및 기간 필터 시계열 대시보드 반영<br>`/api/v1/queue/workers/run`, `QUEUE_MAX_ATTEMPTS` 적용, `GET /api/v1/dashboard/metrics?period_days=7|14|30` 확장<br>프론트 대시보드에 기간 선택/시계열 막대 차트/워커 실행 버튼 추가 | Backend `14 passed`, Frontend `build` 통과 |
+| 2026-04-06 | AI | STT/TTS/Storage/Queue 상세 명세 문서화<br>`docs/media-pipeline-spec.md` 신규 작성<br>`README.md`, `docs/architecture.md`, `docs/api-specification.md`에 상세 링크/요약 반영 | 코드 기준 동작 명세 고정 |
 
 ## 9. 다음 단계 제안
 
