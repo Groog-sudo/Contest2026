@@ -6,6 +6,7 @@
 > 최종 수정일: `2026-04-06`  
 > 상태: 구현 반영 완료 (스캐폴드 + DB 저장 + 큐 워커/재시도 + 기간 시계열 대시보드)
 > 음성 처리 상세 문서: `docs/media-pipeline-spec.md`
+> 테스트 플로우 상세 문서: `docs/testing-strategy.md`
 
 ---
 
@@ -440,7 +441,7 @@
 
 ## 5. 테스트 항목
 
-현재 계약 테스트:
+### 5.1 API 계약 테스트(Integration)
 
 - `test_lead_registration_requires_consent`
 - `test_lead_registration_returns_contract_shape`
@@ -461,5 +462,16 @@
 
 ```bash
 cd backend
-python -m pytest -q
+python -m pytest -m integration -q
 ```
+
+### 5.2 단계별 권장 실행 순서
+
+```bash
+cd backend
+python -m pytest -m unit -q
+python -m pytest -m smoke -q
+python -m pytest -m integration -q
+```
+
+전체 상세 규칙은 `docs/testing-strategy.md`를 참고합니다.

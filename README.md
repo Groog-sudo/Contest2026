@@ -6,7 +6,7 @@ AI 활용 차세대 교육 솔루션 공모전을 위한 연락처 기반 AI 전
 | --- | --- |
 | 버전 | `0.3.0` |
 | 최종 수정일 | `2026-04-06` |
-| 현재 상태 | 리드 접수/콜 요청/녹취 업로드 큐/STT 전사 저장/TTS 프리뷰/레벨테스트/운영 대시보드(기간 필터·시계열) 구현 완료 |
+| 현재 상태 | 리드 접수/콜 요청/녹취 업로드 큐/STT 전사 저장/TTS 프리뷰/레벨테스트/운영 대시보드 구현 + Unit/Smoke/Integration 테스트 플로우 문서화 완료 |
 
 ## 1. 프로젝트 개요
 
@@ -65,6 +65,7 @@ Contest2026/
 │   ├── architecture.md
 │   ├── api-specification.md
 │   ├── media-pipeline-spec.md
+│   ├── testing-strategy.md
 │   └── ai-report-outline.md
 ├── frontend/
 │   ├── src/
@@ -166,13 +167,20 @@ uvicorn app.main:app --reload
 ## 6. 검증 상태
 
 - Frontend: `npm run build` 통과
-- Backend: `python -m pytest -q` 통과 (`14 passed`)
+- Backend: `python -m pytest -q` 통과 (`17 passed`)
+
+### 6.1 테스트 플로우 (권장)
+
+1. Unit: `cd backend && python -m pytest -m unit -q`
+2. Smoke: `cd backend && python -m pytest -m smoke -q` + `cd frontend && npm run build`
+3. Integration: `cd backend && python -m pytest -m integration -q`
 
 ## 7. 문서 링크
 
 - 아키텍처: [`docs/architecture.md`](docs/architecture.md)
 - API 명세: [`docs/api-specification.md`](docs/api-specification.md)
 - 음성 파이프라인 상세(STT/TTS/Storage/Queue): [`docs/media-pipeline-spec.md`](docs/media-pipeline-spec.md)
+- 테스트 전략(Unit/Smoke/Integration): [`docs/testing-strategy.md`](docs/testing-strategy.md)
 - AI 리포트 템플릿: [`docs/ai-report-outline.md`](docs/ai-report-outline.md)
 
 ## 8. 날짜별 작업 기록
@@ -186,6 +194,7 @@ uvicorn app.main:app --reload
 | 2026-04-06 | AI | 운영 대시보드/큐 처리 흐름 추가<br>`/api/v1/dashboard/metrics`, `/api/v1/queue/tasks`, `/api/v1/queue/process`, `/api/v1/calls/recordings/upload` 반영<br>프론트 `MetricsPanel` 연결 및 큐 수동 처리 버튼 추가 | Backend `13 passed`, Frontend `build` 통과 |
 | 2026-04-06 | AI | 큐 워커 분리/재시도 정책 및 기간 필터 시계열 대시보드 반영<br>`/api/v1/queue/workers/run`, `QUEUE_MAX_ATTEMPTS` 적용, `GET /api/v1/dashboard/metrics?period_days=7|14|30` 확장<br>프론트 대시보드에 기간 선택/시계열 막대 차트/워커 실행 버튼 추가 | Backend `14 passed`, Frontend `build` 통과 |
 | 2026-04-06 | AI | STT/TTS/Storage/Queue 상세 명세 문서화<br>`docs/media-pipeline-spec.md` 신규 작성<br>`README.md`, `docs/architecture.md`, `docs/api-specification.md`에 상세 링크/요약 반영 | 코드 기준 동작 명세 고정 |
+| 2026-04-06 | AI | 테스트 체계를 Unit/Smoke/Integration 플로우로 명세화<br>`docs/testing-strategy.md` 신규 작성, `backend/pytest.ini` 마커 정의(`unit`, `smoke`, `integration`) 반영<br>Unit 테스트(`test_unit_service_utils.py`) 추가 및 기존 테스트 분류 적용 | Backend `17 passed`, Frontend `build` 통과 |
 
 ## 9. 다음 단계 제안
 

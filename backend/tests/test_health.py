@@ -1,8 +1,10 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 client = TestClient(app)
+pytestmark = pytest.mark.smoke
 
 
 def test_health_check_returns_ok() -> None:
@@ -10,4 +12,3 @@ def test_health_check_returns_ok() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-

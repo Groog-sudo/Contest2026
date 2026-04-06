@@ -1,8 +1,10 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 client = TestClient(app)
+pytestmark = pytest.mark.integration
 
 
 def test_lead_registration_requires_consent() -> None:
