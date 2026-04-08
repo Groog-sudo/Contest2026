@@ -2,8 +2,8 @@
 
 > 프로젝트: AI 활용 차세대 교육 솔루션 - AI 전화 멘토링 시스템  
 > 버전: `0.3.0`  
-> 최종 수정일: `2026-04-06`  
-> 상태: STT/TTS/Storage/Queue 워커/대시보드 시계열 반영 완료
+> 최종 수정일: `2026-04-08`  
+> 상태: STT/TTS/Storage/Queue 워커/대시보드 시계열 + PostgreSQL/pgvector RAG 반영 완료
 
 ---
 
@@ -49,10 +49,10 @@
 │  └──────────┬───────────────────────────┬───────────────────┘    │
 │             ▼                           ▼                        │
 │  ┌──────────────────────┐   ┌────────────────────────────────┐   │
-│  │  SQLite Repository   │   │ External Clients               │   │
+│  │ PostgreSQL Repository│   │ External Clients               │   │
 │  │  - leads             │   │ - STT client (mock/real)       │   │
 │  │  - calls             │   │ - TTS client (mock/real)       │   │
-│  │  - transcript turns  │   │ - OpenAI/Pinecone (planned)    │   │
+│  │  - transcript turns  │   │ - OpenAI Embeddings            │   │
 │  │  - assessments       │   │ - Object storage (local/s3)    │   │
 │  │  - knowledge_docs    │   │ - Call provider (planned)      │   │
 │  │  - recordings/tasks  │   │                                │   │
@@ -87,7 +87,7 @@
 - 녹취 업로드 -> 저장소 적재 -> `stt_transcription` 큐 등록
 - 큐 재시도 정책 적용 (`QUEUE_MAX_ATTEMPTS`)
 
-### 4.2 MentoringRepository (SQLite)
+### 4.2 MentoringRepository (PostgreSQL + SQLite fallback)
 
 초기 실행 시 스키마를 자동 생성합니다.
 
@@ -96,8 +96,11 @@
 - `call_transcript_turns`
 - `assessments`
 - `knowledge_documents`
+- `knowledge_document_chunks`
 - `recordings`
 - `async_tasks`
+
+운영 환경에서는 PostgreSQL + pgvector를 사용하고, 테스트/로컬 fallback으로 SQLite를 유지합니다.
 
 ### 4.3 STT/TTS Client
 
@@ -154,14 +157,14 @@
 
 | 그룹 | 변수 |
 | --- | --- |
-| DB | `APP_DB_PATH` |
-| RAG | `OPENAI_API_KEY`, `OPENAI_EMBEDDING_MODEL`, `PINECONE_API_KEY`, `PINECONE_INDEX_NAME`, `PINECONE_NAMESPACE` |
+| DB | `APP_DATABASE_URL`, `APP_DB_PATH` |
+| RAG | `OPENAI_API_KEY`, `OPENAI_EMBEDDING_MODEL`, `OPENAI_EMBEDDING_DIMENSIONS` |
 | STT | `STT_PROVIDER_NAME`, `STT_PROVIDER_API_KEY`, `OPENAI_STT_MODEL` |
 | TTS | `TTS_PROVIDER_NAME`, `TTS_PROVIDER_API_KEY`, `OPENAI_TTS_MODEL` |
 | Storage | `OBJECT_STORAGE_PROVIDER`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_ENDPOINT_URL`, `OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY`, `OBJECT_STORAGE_LOCAL_DIR`, `OBJECT_STORAGE_PUBLIC_BASE_URL` |
 | Queue | `QUEUE_AUTO_PROCESS`, `QUEUE_MAX_ATTEMPTS` |
 | Call | `CALL_PROVIDER_NAME`, `CALL_PROVIDER_API_KEY`, `OUTBOUND_CALL_FROM_NUMBER` |
-| Common | `FRONTEND_ORIGIN` |
+| Common | `FRONTEND_ORIGINS` |
 
 ---
 

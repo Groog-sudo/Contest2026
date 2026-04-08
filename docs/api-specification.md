@@ -3,8 +3,8 @@
 > 프로젝트: AI 활용 차세대 교육 솔루션 - AI 전화 멘토링 시스템  
 > API 버전: `v1`  
 > Base URL: `http://localhost:8000/api/v1`  
-> 최종 수정일: `2026-04-06`  
-> 상태: 구현 반영 완료 (스캐폴드 + DB 저장 + 큐 워커/재시도 + 기간 시계열 대시보드)
+> 최종 수정일: `2026-04-08`  
+> 상태: 구현 반영 완료 (스캐폴드 + PostgreSQL/pgvector RAG + DB 저장 + 큐 워커/재시도 + 기간 시계열 대시보드)
 > 음성 처리 상세 문서: `docs/media-pipeline-spec.md`
 > 테스트 플로우 상세 문서: `docs/testing-strategy.md`
 
@@ -420,8 +420,8 @@
 
 | 값 | 의미 |
 | --- | --- |
-| `accepted` | RAG 설정 완료 상태에서 문서 처리 |
-| `knowledge_base_pending` | 문서 수신 완료, 지식베이스 색인 대기 |
+| `accepted` | PostgreSQL + pgvector 환경에서 임베딩/청크 저장까지 완료 |
+| `knowledge_base_pending` | 문서 수신 완료, RAG 미설정 또는 색인 실패로 대기 |
 
 ---
 
@@ -434,6 +434,7 @@
 | `call_transcript_turns` | 통화 전사 turn 데이터 |
 | `assessments` | 레벨 평가 결과 |
 | `knowledge_documents` | 업로드 문서 메타데이터 |
+| `knowledge_document_chunks` | 문서 청크 및 pgvector 임베딩 |
 | `recordings` | 업로드된 통화 녹취 메타데이터 |
 | `async_tasks` | 비동기 큐 작업 상태/결과 |
 

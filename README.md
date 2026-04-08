@@ -5,8 +5,8 @@ AI 활용 차세대 교육 솔루션 공모전을 위한 연락처 기반 AI 전
 | 항목 | 내용 |
 | --- | --- |
 | 버전 | `0.3.0` |
-| 최종 수정일 | `2026-04-06` |
-| 현재 상태 | 리드 접수/콜 요청/녹취 업로드 큐/STT 전사 저장/TTS 프리뷰/레벨테스트/운영 대시보드 구현 + Unit/Smoke/Integration 테스트 플로우 문서화 완료 |
+| 최종 수정일 | `2026-04-08` |
+| 현재 상태 | 리드 접수/콜 요청/녹취 업로드 큐/STT 전사 저장/TTS 프리뷰/레벨테스트/운영 대시보드 구현 + PostgreSQL/pgvector RAG 전환 + Unit/Smoke/Integration 테스트 검증 완료 |
 
 ## 1. 프로젝트 개요
 
@@ -37,13 +37,15 @@ AI 활용 차세대 교육 솔루션 공모전을 위한 연락처 기반 AI 전
 
 ### 데이터 저장
 
-- SQLite 저장소 추가 (`APP_DB_PATH`)
+- 운영 권장 저장소: PostgreSQL + pgvector (`APP_DATABASE_URL`)
+- 로컬 테스트 fallback: SQLite (`APP_DB_PATH`)
 - 저장 테이블:
   - `leads`
   - `calls`
   - `call_transcript_turns`
   - `assessments`
   - `knowledge_documents`
+  - `knowledge_document_chunks`
   - `recordings`
   - `async_tasks`
 
@@ -93,14 +95,13 @@ Contest2026/
 | 변수명 | 위치 | 설명 |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | Frontend | 백엔드 API 주소 |
+| `APP_DATABASE_URL` | Backend | PostgreSQL 연결 문자열 (`pgvector` 확장 포함 권장) |
 | `APP_DB_PATH` | Backend | SQLite 파일 경로 |
 | `OPENAI_API_KEY` | Backend | 생성형 AI 연동 키 |
 | `OPENAI_EMBEDDING_MODEL` | Backend | 임베딩 모델 |
+| `OPENAI_EMBEDDING_DIMENSIONS` | Backend | pgvector 컬럼 차원 수 (기본 `1536`) |
 | `OPENAI_STT_MODEL` | Backend | OpenAI STT 모델 |
 | `OPENAI_TTS_MODEL` | Backend | OpenAI TTS 모델 |
-| `PINECONE_API_KEY` | Backend | Pinecone 연동 키 |
-| `PINECONE_INDEX_NAME` | Backend | Pinecone 인덱스 이름 |
-| `PINECONE_NAMESPACE` | Backend | Pinecone namespace |
 | `OBJECT_STORAGE_PROVIDER` | Backend | 녹취 저장소 타입 (`local`/`s3`) |
 | `OBJECT_STORAGE_BUCKET` | Backend | S3 버킷 이름 |
 | `OBJECT_STORAGE_REGION` | Backend | S3 리전 |
@@ -118,7 +119,7 @@ Contest2026/
 | `CALL_PROVIDER_NAME` | Backend | 발신 프로바이더 식별자 |
 | `CALL_PROVIDER_API_KEY` | Backend | 발신 API 키 |
 | `OUTBOUND_CALL_FROM_NUMBER` | Backend | 발신 번호 |
-| `FRONTEND_ORIGIN` | Backend | CORS 허용 오리진 |
+| `FRONTEND_ORIGINS` | Backend | CORS 허용 오리진 목록(JSON 배열) |
 
 ### 4.1 STT/TTS/녹취 파이프라인 요약 명세
 
@@ -157,17 +158,20 @@ npm run dev
 ### Backend
 
 ```bash
+docker compose -f docker-compose.pgvector.yml up -d
+
 cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+# PostgreSQL + pgvector 연결 문자열을 .env 에 설정
 uvicorn app.main:app --reload
 ```
 
 ## 6. 검증 상태
 
 - Frontend: `npm run build` 통과
-- Backend: `python -m pytest -q` 통과 (`17 passed`)
+- Backend: `python -m pytest -q` 통과 (`19 passed`)
 
 ### 6.1 테스트 플로우 (권장)
 
@@ -195,6 +199,7 @@ uvicorn app.main:app --reload
 | 2026-04-06 | AI | 큐 워커 분리/재시도 정책 및 기간 필터 시계열 대시보드 반영<br>`/api/v1/queue/workers/run`, `QUEUE_MAX_ATTEMPTS` 적용, `GET /api/v1/dashboard/metrics?period_days=7|14|30` 확장<br>프론트 대시보드에 기간 선택/시계열 막대 차트/워커 실행 버튼 추가 | Backend `14 passed`, Frontend `build` 통과 |
 | 2026-04-06 | AI | STT/TTS/Storage/Queue 상세 명세 문서화<br>`docs/media-pipeline-spec.md` 신규 작성<br>`README.md`, `docs/architecture.md`, `docs/api-specification.md`에 상세 링크/요약 반영 | 코드 기준 동작 명세 고정 |
 | 2026-04-06 | AI | 테스트 체계를 Unit/Smoke/Integration 플로우로 명세화<br>`docs/testing-strategy.md` 신규 작성, `backend/pytest.ini` 마커 정의(`unit`, `smoke`, `integration`) 반영<br>Unit 테스트(`test_unit_service_utils.py`) 추가 및 기존 테스트 분류 적용 | Backend `17 passed`, Frontend `build` 통과 |
+| 2026-04-08 | AI | 운영 저장소를 PostgreSQL + pgvector 기준으로 전환<br>`APP_DATABASE_URL`/`OPENAI_EMBEDDING_DIMENSIONS` 추가, `MentoringRepository`를 PostgreSQL 우선 + SQLite fallback 구조로 확장<br>문서 청크를 `knowledge_document_chunks`에 저장하고 RAG 검색을 DB 내부 벡터 검색으로 교체 | Backend `19 passed` |
 
 ## 9. 다음 단계 제안
 

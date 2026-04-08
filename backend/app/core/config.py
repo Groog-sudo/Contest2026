@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -6,11 +7,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
+    app_database_url: str | None = Field(default=None, alias="APP_DATABASE_URL")
     app_db_path: str = Field(default="./data/mentoring.sqlite3", alias="APP_DB_PATH")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_embedding_model: str = Field(
         default="text-embedding-3-small",
         alias="OPENAI_EMBEDDING_MODEL",
+    )
+    openai_embedding_dimensions: int = Field(
+        default=1536,
+        alias="OPENAI_EMBEDDING_DIMENSIONS",
     )
     openai_stt_model: str = Field(
         default="gpt-4o-mini-transcribe",
@@ -20,9 +26,6 @@ class Settings(BaseSettings):
         default="gpt-4o-mini-tts",
         alias="OPENAI_TTS_MODEL",
     )
-    pinecone_api_key: str | None = Field(default=None, alias="PINECONE_API_KEY")
-    pinecone_index_name: str | None = Field(default=None, alias="PINECONE_INDEX_NAME")
-    pinecone_namespace: str = Field(default="contest2026", alias="PINECONE_NAMESPACE")
     object_storage_provider: str = Field(default="local", alias="OBJECT_STORAGE_PROVIDER")
     object_storage_bucket: str | None = Field(default=None, alias="OBJECT_STORAGE_BUCKET")
     object_storage_region: str | None = Field(default=None, alias="OBJECT_STORAGE_REGION")
@@ -58,7 +61,11 @@ class Settings(BaseSettings):
         default=None,
         alias="OUTBOUND_CALL_FROM_NUMBER",
     )
-    frontend_origin: str = Field(default="http://localhost:5173", alias="FRONTEND_ORIGIN")
+    frontend_origins: list[str] = Field(
+        default=["http://localhost:5173"],
+        alias="FRONTEND_ORIGINS",
+    )
+
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -70,13 +77,30 @@ class Settings(BaseSettings):
 
     @property
     def rag_configured(self) -> bool:
-        return all(
-            [
-                bool(self.openai_api_key),
-                bool(self.pinecone_api_key),
-                bool(self.pinecone_index_name),
-            ]
+        return bool(self.openai_api_key) and self.vector_search_enabled
+
+    @property
+    def database_url(self) -> str:
+        if self.app_database_url:
+            return self.app_database_url
+
+        db_path = Path(self.app_db_path).expanduser().resolve()
+        return f"sqlite:///{db_path.as_posix()}"
+
+    @property
+    def database_backend(self) -> str:
+        database_url = self.database_url.lower()
+        if database_url.startswith(("postgresql://", "postgres://")):
+            return "postgresql"
+        if database_url.startswith("sqlite:///"):
+            return "sqlite"
+        raise ValueError(
+            "Unsupported APP_DATABASE_URL scheme. Use postgresql:// or sqlite:///."
         )
+
+    @property
+    def vector_search_enabled(self) -> bool:
+        return self.database_backend == "postgresql"
 
     @property
     def outbound_call_configured(self) -> bool:

@@ -52,3 +52,24 @@ def test_summarize_turns_uses_student_and_ai_lines(tmp_path) -> None:
 
     assert "기초부터 배우고 싶어요." in summary
     assert "기초 트랙부터 시작합시다." in summary
+
+
+def test_sqlite_fallback_disables_vector_search(tmp_path) -> None:
+    service = build_service(tmp_path)
+
+    assert service.settings.database_backend == "sqlite"
+    assert service.repository.supports_vector_search is False
+    assert service.settings.rag_configured is False
+
+
+def test_postgres_settings_enable_rag_when_openai_key_present() -> None:
+    settings = Settings(
+        APP_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/contest2026",
+        OPENAI_API_KEY="test-key",
+        STT_PROVIDER_NAME="mock",
+        TTS_PROVIDER_NAME="mock",
+    )
+
+    assert settings.database_backend == "postgresql"
+    assert settings.vector_search_enabled is True
+    assert settings.rag_configured is True

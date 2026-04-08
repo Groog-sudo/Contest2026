@@ -5,7 +5,6 @@ from uuid import uuid4
 
 from fastapi import UploadFile
 
-from app.clients.pinecone_client import PineconeClient
 from app.clients.stt_client import STTClient
 from app.clients.storage_client import ObjectStorageClient
 from app.clients.tts_client import TTSClient
@@ -37,10 +36,9 @@ from app.schemas.queue import (
 class MentoringService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.repository = MentoringRepository(settings.app_db_path)
+        self.repository = MentoringRepository(settings)
         self.stt_client = STTClient(settings)
         self.tts_client = TTSClient(settings)
-        self.pinecone_client = PineconeClient(settings)
         self.storage_client = ObjectStorageClient(settings)
 
     def register_lead(self, payload: LeadRegistrationRequest) -> LeadRegistrationResponse:
@@ -107,14 +105,15 @@ class MentoringService:
         chunks = split_text(text=text, chunk_size=700)
         status = "knowledge_base_pending"
 
-        if self.settings.rag_configured and chunks:
+        if self.settings.rag_configured and self.repository.supports_vector_search and chunks:
             try:
-                vectors = self._build_pinecone_vectors(
+                embeddings = self._embed_texts(chunks)
+                self.repository.save_document_chunks(
                     document_id=document_id,
                     filename=filename,
                     chunks=chunks,
+                    embeddings=embeddings,
                 )
-                self.pinecone_client.upsert_chunks(vectors=vectors)
                 status = "accepted"
             except Exception:
                 status = "knowledge_base_pending"
@@ -446,12 +445,15 @@ class MentoringService:
         return sources
 
     def _search_curriculum_sources(self, *, question: str, top_k: int) -> list[CallSourceItem]:
-        if not self.settings.rag_configured:
+        if not self.settings.rag_configured or not self.repository.supports_vector_search:
             return []
 
         try:
             vector = self._embed_texts([question])[0]
-            matches = self.pinecone_client.query(vector=vector, top_k=top_k)
+            matches = self.repository.search_knowledge_chunks(
+                embedding=vector,
+                top_k=top_k,
+            )
         except Exception:
             return []
 
@@ -473,31 +475,6 @@ class MentoringService:
                 )
             )
         return sources
-
-    def _build_pinecone_vectors(
-        self,
-        *,
-        document_id: str,
-        filename: str,
-        chunks: list[str],
-    ) -> list[dict[str, object]]:
-        embeddings = self._embed_texts(chunks)
-        vectors: list[dict[str, object]] = []
-        for index, chunk in enumerate(chunks):
-            vectors.append(
-                {
-                    "id": f"{document_id}-{index}",
-                    "values": embeddings[index],
-                    "metadata": {
-                        "document_id": document_id,
-                        "filename": filename,
-                        "title": filename,
-                        "chunk_index": index,
-                        "text": chunk[:900],
-                    },
-                }
-            )
-        return vectors
 
     def _embed_texts(self, texts: list[str]) -> list[list[float]]:
         if not self.settings.openai_api_key:

@@ -1,6 +1,7 @@
 # AI 리포트 작성 템플릿
 
 > 문서 목적: 공모전 제출용 보고서를 현재 구현 상태에 맞춰 빠르게 정리하기 위한 양식
+> 최종 수정일: `2026-04-08`
 
 ---
 
@@ -49,7 +50,7 @@
 - Frontend:
 - Backend:
 - DB 저장 구조:
-- 외부 연동(OpenAI/Pinecone/STT/TTS/통신사):
+- 외부 연동(OpenAI/PostgreSQL+pgvector/STT/TTS/통신사):
 
 ---
 

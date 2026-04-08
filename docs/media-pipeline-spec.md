@@ -2,7 +2,7 @@
 
 > 프로젝트: AI 활용 차세대 교육 솔루션 - AI 전화 멘토링 시스템  
 > 버전: `0.3.0`  
-> 최종 수정일: `2026-04-06`  
+> 최종 수정일: `2026-04-08`  
 > 대상 코드 기준: `backend/app/clients/*`, `backend/app/services/mentoring_service.py`, `backend/app/workers/queue_worker.py`
 
 ---
@@ -30,7 +30,7 @@
 | Client | TTSClient | `backend/app/clients/tts_client.py` | 텍스트 -> 음성 합성 |
 | Client | ObjectStorageClient | `backend/app/clients/storage_client.py` | 오디오 바이트 저장/조회 |
 | Worker | Queue Worker | `backend/app/workers/queue_worker.py` | 큐 배치 처리 실행 |
-| Data | Repository | `backend/app/db/repository.py` | recordings/async_tasks/transcript turns 저장 |
+| Data | Repository | `backend/app/db/repository.py` | PostgreSQL 우선/SQLite fallback으로 recordings/async_tasks/transcript turns 저장 |
 
 ---
 
