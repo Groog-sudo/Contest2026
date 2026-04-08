@@ -1,7 +1,7 @@
 # 테스트 전략 명세서 (Unit -> Smoke -> Integration)
 
 > 프로젝트: AI 전화 멘토링 시스템  
-> 최종 수정일: `2026-04-06`  
+> 최종 수정일: `2026-04-08`  
 > 목적: 배포 전 테스트를 단계적으로 수행해 빠르게 실패를 감지하고, 통합 리스크를 마지막에 검증
 
 ---
@@ -55,6 +55,7 @@ python -m pytest -m unit -q
 
 - `backend/tests/test_health.py`
 - Frontend 빌드 확인 (`npm run build`)
+- PostgreSQL 프로필 사용 시 `backend/.env`의 `APP_DATABASE_URL`이 `vector` 확장이 활성화된 실행 중 인스턴스를 가리키는지 사전 확인
 
 실행 명령:
 
@@ -99,6 +100,7 @@ python -m pytest -m integration -q
 
 ```bash
 cd backend
+# backend/.env -> APP_DATABASE_URL 확인
 python -m pytest -m unit -q
 python -m pytest -m smoke -q
 python -m pytest -m integration -q

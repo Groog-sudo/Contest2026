@@ -166,6 +166,13 @@
 | Call | `CALL_PROVIDER_NAME`, `CALL_PROVIDER_API_KEY`, `OUTBOUND_CALL_FROM_NUMBER` |
 | Common | `FRONTEND_ORIGINS` |
 
+### 6.1 런타임 설정 파일
+
+- Frontend는 `frontend/.env`를 기준으로 `VITE_API_BASE_URL`을 읽습니다.
+- Backend는 `backend/.env`를 기준으로 `APP_DATABASE_URL`, `OPENAI_*`, `FRONTEND_ORIGINS`를 읽습니다.
+- 루트 `.env`는 개발용 공용 참조본으로 사용할 수 있지만, 실제 실행 시에는 각 앱 디렉터리의 `.env`를 우선 정렬하는 구성을 권장합니다.
+- PostgreSQL 프로필은 `APP_DATABASE_URL`이 `vector` 확장이 활성화된 인스턴스를 가리켜야 하며, 로컬 검증 예시는 `postgresql://postgres:<password>@127.0.0.1:5433/contest2026`입니다.
+
 ---
 
 ## 7. 현재 한계

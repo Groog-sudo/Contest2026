@@ -121,7 +121,14 @@ Contest2026/
 | `OUTBOUND_CALL_FROM_NUMBER` | Backend | 발신 번호 |
 | `FRONTEND_ORIGINS` | Backend | CORS 허용 오리진 목록(JSON 배열) |
 
-### 4.1 STT/TTS/녹취 파이프라인 요약 명세
+### 4.1 런타임 `.env` 파일 위치
+
+- Frontend 실행 시 `frontend/.env`를 읽습니다.
+- Backend 실행 시 `backend/.env`를 읽습니다.
+- 루트 `.env`는 공용 참조본으로 둘 수 있지만, 실제 실행값은 Frontend/Backend 각 디렉터리의 `.env`에 맞춰 두는 것을 권장합니다.
+- `APP_DATABASE_URL`은 반드시 `vector` 확장이 활성화된 PostgreSQL 인스턴스를 가리켜야 합니다.
+
+### 4.2 STT/TTS/녹취 파이프라인 요약 명세
 
 | 항목 | 현재 구현 |
 | --- | --- |
@@ -152,6 +159,8 @@ Contest2026/
 ```bash
 cd frontend
 npm install
+# frontend/.env
+# VITE_API_BASE_URL=http://localhost:8000
 npm run dev
 ```
 
@@ -164,7 +173,12 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-# PostgreSQL + pgvector 연결 문자열을 .env 에 설정
+# backend/.env
+# APP_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/contest2026
+# FRONTEND_ORIGINS=["http://localhost:5173"]
+#
+# 로컬 검증 프로필 예시(별도 pgvector 인스턴스):
+# APP_DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5433/contest2026
 uvicorn app.main:app --reload
 ```
 
@@ -172,6 +186,7 @@ uvicorn app.main:app --reload
 
 - Frontend: `npm run build` 통과
 - Backend: `python -m pytest -q` 통과 (`19 passed`)
+- Local PostgreSQL + pgvector: `contest2026` DB / `vector 0.8.1` 확장 / `127.0.0.1:5433` 연결 검증 완료
 
 ### 6.1 테스트 플로우 (권장)
 
@@ -200,6 +215,7 @@ uvicorn app.main:app --reload
 | 2026-04-06 | AI | STT/TTS/Storage/Queue 상세 명세 문서화<br>`docs/media-pipeline-spec.md` 신규 작성<br>`README.md`, `docs/architecture.md`, `docs/api-specification.md`에 상세 링크/요약 반영 | 코드 기준 동작 명세 고정 |
 | 2026-04-06 | AI | 테스트 체계를 Unit/Smoke/Integration 플로우로 명세화<br>`docs/testing-strategy.md` 신규 작성, `backend/pytest.ini` 마커 정의(`unit`, `smoke`, `integration`) 반영<br>Unit 테스트(`test_unit_service_utils.py`) 추가 및 기존 테스트 분류 적용 | Backend `17 passed`, Frontend `build` 통과 |
 | 2026-04-08 | AI | 운영 저장소를 PostgreSQL + pgvector 기준으로 전환<br>`APP_DATABASE_URL`/`OPENAI_EMBEDDING_DIMENSIONS` 추가, `MentoringRepository`를 PostgreSQL 우선 + SQLite fallback 구조로 확장<br>문서 청크를 `knowledge_document_chunks`에 저장하고 RAG 검색을 DB 내부 벡터 검색으로 교체 | Backend `19 passed` |
+| 2026-04-08 | AI | 로컬 실행 환경을 PostgreSQL + pgvector 기준으로 검증하고 문서 업데이트<br>`backend/.env`, `frontend/.env` 런타임 위치를 README/architecture/testing 문서에 반영<br>로컬 검증 프로필(`127.0.0.1:5433`, `vector 0.8.1`)을 실행 가이드에 추가 | Frontend `build` 통과 |
 
 ## 9. 다음 단계 제안
 
