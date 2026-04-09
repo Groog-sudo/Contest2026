@@ -1,57 +1,91 @@
 import pytest
 from fastapi.testclient import TestClient
 
+import os
+import shutil
+from pathlib import Path
+
+TEST_DB_PATH = Path(__file__).parent / "test_api_contract.sqlite3"
+TEST_CHROMA_PATH = Path(__file__).parent / ".chroma_test"
+if TEST_DB_PATH.exists():
+    TEST_DB_PATH.unlink()
+if TEST_CHROMA_PATH.exists():
+    shutil.rmtree(TEST_CHROMA_PATH)
+
+os.environ["APP_DATABASE_URL"] = ""
+os.environ["APP_DB_PATH"] = str(TEST_DB_PATH)
+os.environ["CHROMA_PERSIST_DIRECTORY"] = str(TEST_CHROMA_PATH)
+os.environ["CHROMA_COLLECTION_NAME"] = "test_collection"
+os.environ["OPENAI_API_KEY"] = ""
+
 from app.main import app
 
 client = TestClient(app)
 pytestmark = pytest.mark.integration
 
 
-def test_lead_registration_requires_consent() -> None:
+def _build_lead_payload(consent: bool = True) -> dict[str, object]:
+    return {
+        "customer_name": "홍고객",
+        "phone_number": "010-1234-5678",
+        "order_id": "ORD-2026-0001",
+        "order_items": ["치킨", "콜라"],
+        "incident_summary": "배달이 1시간 이상 지연되고 음식이 식어서 도착했습니다.",
+        "requested_resolution": "환불",
+        "preferred_contact_time": "오늘 저녁",
+        "consent_to_contact": consent,
+    }
+
+
+def _create_lead() -> str:
+    response = client.post("/api/v1/leads/register", json=_build_lead_payload())
+    assert response.status_code == 200
+    return response.json()["lead_id"]
+
+
+def _create_call(lead_id: str) -> str:
     response = client.post(
-        "/api/v1/leads/register",
+        "/api/v1/calls/request",
         json={
-            "student_name": "김수강",
+            "lead_id": lead_id,
+            "customer_name": "홍고객",
             "phone_number": "010-1234-5678",
-            "course_interest": "AI 취업 부트캠프",
-            "learning_goal": "실무 프로젝트 경험을 쌓고 싶습니다.",
-            "preferred_call_time": "평일 오후 7시 이후",
-            "consent_to_call": False,
+            "order_id": "ORD-2026-0001",
+            "incident_summary": "배달이 늦고 음식 온도가 낮습니다.",
+            "requested_resolution": "refund",
+            "top_k": 3,
         },
     )
+    assert response.status_code == 200
+    return response.json()["call_id"]
 
+
+def test_lead_registration_requires_consent() -> None:
+    response = client.post("/api/v1/leads/register", json=_build_lead_payload(consent=False))
     assert response.status_code == 422
 
 
 def test_lead_registration_returns_contract_shape() -> None:
-    response = client.post(
-        "/api/v1/leads/register",
-        json={
-            "student_name": "김수강",
-            "phone_number": "010-1234-5678",
-            "course_interest": "AI 취업 부트캠프",
-            "learning_goal": "실무 프로젝트 경험을 쌓고 싶습니다.",
-            "preferred_call_time": "평일 오후 7시 이후",
-            "consent_to_call": True,
-        },
-    )
+    response = client.post("/api/v1/leads/register", json=_build_lead_payload())
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "captured"
     assert isinstance(payload["lead_id"], str)
-    assert "상담 정보를 접수했습니다" in payload["next_action"]
+    assert "배달 불만 접수" in payload["next_action"]
 
 
-def test_call_request_requires_non_empty_question() -> None:
+def test_call_request_requires_non_empty_summary() -> None:
+    lead_id = _create_lead()
     response = client.post(
         "/api/v1/calls/request",
         json={
-            "lead_id": "lead-123",
-            "student_name": "김수강",
+            "lead_id": lead_id,
+            "customer_name": "홍고객",
             "phone_number": "010-1234-5678",
-            "course_interest": "AI 취업 부트캠프",
-            "student_question": "",
+            "order_id": "ORD-2026-0001",
+            "incident_summary": "",
+            "requested_resolution": "refund",
             "top_k": 3,
         },
     )
@@ -60,14 +94,16 @@ def test_call_request_requires_non_empty_question() -> None:
 
 
 def test_call_request_returns_draft_when_unconfigured() -> None:
+    lead_id = _create_lead()
     response = client.post(
         "/api/v1/calls/request",
         json={
-            "lead_id": "lead-123",
-            "student_name": "김수강",
+            "lead_id": lead_id,
+            "customer_name": "홍고객",
             "phone_number": "010-1234-5678",
-            "course_interest": "AI 취업 부트캠프",
-            "student_question": "어떤 커리큘럼으로 실무 포트폴리오를 만들 수 있나요?",
+            "order_id": "ORD-2026-0001",
+            "incident_summary": "배달 지연 및 음식 상태 이상",
+            "requested_resolution": "refund",
             "top_k": 3,
         },
     )
@@ -82,27 +118,17 @@ def test_call_request_returns_draft_when_unconfigured() -> None:
 
 
 def test_transcript_ingest_returns_contract_shape() -> None:
-    call_response = client.post(
-        "/api/v1/calls/request",
-        json={
-            "lead_id": "lead-123",
-            "student_name": "김수강",
-            "phone_number": "010-1234-5678",
-            "course_interest": "AI 취업 부트캠프",
-            "student_question": "학습 순서를 추천해 주세요.",
-            "top_k": 3,
-        },
-    )
-    call_id = call_response.json()["call_id"]
+    lead_id = _create_lead()
+    call_id = _create_call(lead_id)
 
     response = client.post(
         "/api/v1/calls/transcripts/ingest",
         json={
             "call_id": call_id,
-            "lead_id": "lead-123",
+            "lead_id": lead_id,
             "transcript_text": (
-                "student: 파이썬 기초가 약한데 어디부터 시작하면 좋을까요?\n"
-                "ai: 기초 트랙부터 시작하고 주간 과제를 병행하는 방식을 추천드립니다."
+                "customer: 주문이 늦게 도착했고 음식이 차갑습니다.\n"
+                "ai: 불편을 드려 죄송합니다. 지연 시간을 확인하겠습니다."
             ),
         },
     )
@@ -112,15 +138,15 @@ def test_transcript_ingest_returns_contract_shape() -> None:
     assert payload["status"] == "stored"
     assert payload["saved_turns"] >= 2
     assert isinstance(payload["transcript_id"], str)
-    assert "수강생 핵심 요청" in payload["summary"]
+    assert "고객 핵심 이슈" in payload["summary"]
 
 
 def test_tts_preview_returns_audio_metadata() -> None:
     response = client.post(
         "/api/v1/calls/tts/preview",
         json={
-            "script": "안녕하세요. 상담 신청해 주셔서 감사합니다.",
-            "voice": "mentor-ko",
+            "script": "불편을 겪으셔서 죄송합니다. 주문번호부터 확인하겠습니다.",
+            "voice": "agent-ko",
         },
     )
 
@@ -131,46 +157,46 @@ def test_tts_preview_returns_audio_metadata() -> None:
     assert payload["audio_url"]
 
 
-def test_level_assessment_returns_recommended_course() -> None:
+def test_incident_analysis_returns_structured_json() -> None:
+    lead_id = _create_lead()
+    call_id = _create_call(lead_id)
+
     response = client.post(
-        "/api/v1/assessments/level-test",
+        "/api/v1/analyses/analyze",
         json={
-            "lead_id": "lead-123",
-            "answers": [
-                {"area": "python", "score": 2},
-                {"area": "data", "score": 3},
-                {"area": "ai-concepts", "score": 2},
-            ],
-            "additional_context": "비전공자이며 주 10시간 학습 가능합니다.",
+            "lead_id": lead_id,
+            "call_id": call_id,
+            "customer_message": "배달이 70분 늦었고 음식이 식었어요. 환불 원합니다.",
+            "order_id": "ORD-2026-0001",
+            "order_items": ["치킨", "콜라"],
+            "evidence_available": "photo",
+            "requested_resolution": ["refund"],
         },
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["level"] in {"beginner", "intermediate", "advanced"}
-    assert isinstance(payload["assessment_id"], str)
-    assert isinstance(payload["recommended_course"], str)
-    assert payload["score"] >= 0
-    assert "curriculum-catalog" in payload["rag_context_ids"]
+    assert payload["primary_category"] in {
+        "merchant_issue",
+        "delivery_issue",
+        "platform_issue",
+        "multi_party_issue",
+        "needs_review",
+    }
+    assert payload["severity"] in {"low", "medium", "high", "critical"}
+    assert isinstance(payload["subcategories"], list)
+    assert isinstance(payload["responsible_parties"], list)
+    assert isinstance(payload["merchant_feedback"]["send"], bool)
+    assert isinstance(payload["issue_details"]["reported_problem"], str)
 
 
 def test_recording_upload_enqueues_transcription_task() -> None:
-    call_response = client.post(
-        "/api/v1/calls/request",
-        json={
-            "lead_id": "lead-queue-1",
-            "student_name": "김수강",
-            "phone_number": "010-1234-5678",
-            "course_interest": "AI 취업 부트캠프",
-            "student_question": "통화 테스트",
-            "top_k": 3,
-        },
-    )
-    call_id = call_response.json()["call_id"]
+    lead_id = _create_lead()
+    call_id = _create_call(lead_id)
 
     response = client.post(
         "/api/v1/calls/recordings/upload",
-        data={"call_id": call_id, "lead_id": "lead-queue-1"},
+        data={"call_id": call_id, "lead_id": lead_id},
         files={"file": ("recording.wav", b"fake-audio", "audio/wav")},
     )
 
@@ -187,30 +213,17 @@ def test_recording_upload_enqueues_transcription_task() -> None:
 
 
 def test_queue_process_returns_contract_shape() -> None:
-    call_response = client.post(
-        "/api/v1/calls/request",
-        json={
-            "lead_id": "lead-queue-2",
-            "student_name": "김수강",
-            "phone_number": "010-1234-5678",
-            "course_interest": "AI 취업 부트캠프",
-            "student_question": "큐 처리 테스트",
-            "top_k": 3,
-        },
-    )
-    call_id = call_response.json()["call_id"]
+    lead_id = _create_lead()
+    call_id = _create_call(lead_id)
 
     upload_response = client.post(
         "/api/v1/calls/recordings/upload",
-        data={"call_id": call_id, "lead_id": "lead-queue-2"},
+        data={"call_id": call_id, "lead_id": lead_id},
         files={"file": ("recording.wav", b"fake-audio", "audio/wav")},
     )
     queue_task_id = upload_response.json()["queue_task_id"]
 
-    process_response = client.post(
-        "/api/v1/queue/process",
-        json={"task_id": queue_task_id},
-    )
+    process_response = client.post("/api/v1/queue/process", json={"task_id": queue_task_id})
 
     assert process_response.status_code == 200
     payload = process_response.json()
@@ -224,10 +237,7 @@ def test_queue_process_returns_contract_shape() -> None:
 
 
 def test_queue_worker_run_returns_contract_shape() -> None:
-    response = client.post(
-        "/api/v1/queue/workers/run",
-        json={"limit": 5},
-    )
+    response = client.post("/api/v1/queue/workers/run", json={"limit": 5})
 
     assert response.status_code == 200
     payload = response.json()
@@ -245,7 +255,8 @@ def test_dashboard_metrics_returns_contract_shape() -> None:
     payload = response.json()
     assert isinstance(payload["total_leads"], int)
     assert isinstance(payload["conversion_rate"], float)
-    assert isinstance(payload["completion_rate"], float)
+    assert isinstance(payload["resolution_rate"], float)
+    assert isinstance(payload["high_risk_cases"], int)
     assert "queued_tasks" in payload
     assert "failed_tasks" in payload
     assert payload["period_days"] == 14
@@ -255,7 +266,8 @@ def test_dashboard_metrics_returns_contract_shape() -> None:
     assert isinstance(first["date"], str)
     assert isinstance(first["leads"], int)
     assert isinstance(first["calls"], int)
-    assert isinstance(first["assessments"], int)
+    assert isinstance(first["analyses"], int)
+    assert isinstance(first["high_risk"], int)
 
 
 def test_document_upload_returns_contract_shape() -> None:

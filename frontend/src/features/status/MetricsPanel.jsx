@@ -65,7 +65,7 @@ export default function MetricsPanel() {
       return 0;
     }
     return Math.max(
-      ...metrics.series.flatMap((point) => [point.leads, point.calls, point.assessments]),
+      ...metrics.series.flatMap((point) => [point.leads, point.calls, point.analyses, point.high_risk]),
     );
   }, [metrics]);
 
@@ -179,21 +179,21 @@ export default function MetricsPanel() {
                 </p>
               </div>
               <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4">
-                <p className="text-xs text-slate-400">평가 완료 리드</p>
+                <p className="text-xs text-slate-400">분류 완료 리드</p>
                 <p className="mt-1 text-2xl font-semibold text-white">
-                  {metrics.leads_with_assessments}
+                  {metrics.leads_with_analyses}
                 </p>
               </div>
               <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4">
-                <p className="text-xs text-slate-400">완주율</p>
+                <p className="text-xs text-slate-400">분류 완료율</p>
                 <p className="mt-1 text-2xl font-semibold text-emerald-200">
-                  {percentage(metrics.completion_rate)}
+                  {percentage(metrics.resolution_rate)}
                 </p>
               </div>
               <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4">
-                <p className="text-xs text-slate-400">평균 레벨 점수</p>
+                <p className="text-xs text-slate-400">고위험 건수</p>
                 <p className="mt-1 text-2xl font-semibold text-amber-200">
-                  {metrics.avg_assessment_score.toFixed(1)}
+                  {metrics.high_risk_cases}
                 </p>
               </div>
             </div>
@@ -212,7 +212,11 @@ export default function MetricsPanel() {
                   </span>
                   <span className="inline-flex items-center gap-1 text-slate-300">
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-300/80" />
-                    assessments
+                    analyses
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-slate-300">
+                    <span className="h-2.5 w-2.5 rounded-full bg-rose-300/80" />
+                    high_risk
                   </span>
                 </div>
               </div>
@@ -233,8 +237,13 @@ export default function MetricsPanel() {
                         />
                         <span
                           className="w-1.5 rounded bg-emerald-300/80"
-                          style={{ height: barHeight(point.assessments, maxSeriesValue) }}
-                          title={`assessments ${point.assessments}`}
+                          style={{ height: barHeight(point.analyses, maxSeriesValue) }}
+                          title={`analyses ${point.analyses}`}
+                        />
+                        <span
+                          className="w-1.5 rounded bg-rose-300/80"
+                          style={{ height: barHeight(point.high_risk, maxSeriesValue) }}
+                          title={`high_risk ${point.high_risk}`}
                         />
                       </div>
                       <p className="mt-2 text-[11px] text-slate-400">{dayLabel(point.date)}</p>

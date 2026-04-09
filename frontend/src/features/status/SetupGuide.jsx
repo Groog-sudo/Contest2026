@@ -23,21 +23,22 @@ export default function SetupGuide({ apiBaseUrl, backendStatus }) {
         <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4">
           <p className="font-medium text-white">환경 변수</p>
           <p className="mt-2">
-            프론트엔드는 `VITE_API_BASE_URL`, 백엔드는 `APP_DB_PATH`,
-            `OPENAI_API_KEY`, `PINECONE_API_KEY`, `PINECONE_INDEX_NAME`,
-            `PINECONE_NAMESPACE`, `STT_PROVIDER_NAME`, `STT_PROVIDER_API_KEY`,
+            프론트엔드는 `VITE_API_BASE_URL`, 백엔드는 `APP_DATABASE_URL`,
+            `APP_DB_PATH`, `OPENAI_API_KEY`, `OPENAI_EMBEDDING_MODEL`,
+            `CHROMA_PERSIST_DIRECTORY`, `CHROMA_COLLECTION_NAME`,
+            `STT_PROVIDER_NAME`, `STT_PROVIDER_API_KEY`,
             `TTS_PROVIDER_NAME`, `TTS_PROVIDER_API_KEY`, `CALL_PROVIDER_NAME`,
             `CALL_PROVIDER_API_KEY`, `OUTBOUND_CALL_FROM_NUMBER`,
-            `FRONTEND_ORIGIN`을 사용합니다.
+            `FRONTEND_ORIGINS`를 사용합니다.
           </p>
         </div>
 
         <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4">
           <p className="font-medium text-white">현재 동작 방식</p>
           <p className="mt-2">
-            API 키 없이도 앱은 실행됩니다. 다만 현재는 상담 리드 접수와 콜
-            스크립트 초안 생성, 전사 적재, 레벨 추천 중심으로 동작하며, 실 STT/TTS
-            및 통신 연동 전에는 `mock` 결과를 반환합니다.
+            API 키 없이도 기본 플로우는 실행됩니다. 현재는 불만 접수, 상담 스크립트
+            생성, 전사 적재, 규칙 기반 분류 JSON 생성 중심으로 동작하며, 실 STT/TTS
+            연동 전에는 `mock` 결과를 반환합니다.
           </p>
         </div>
       </div>

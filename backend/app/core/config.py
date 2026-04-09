@@ -8,15 +8,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
     app_database_url: str | None = Field(default=None, alias="APP_DATABASE_URL")
-    app_db_path: str = Field(default="./data/mentoring.sqlite3", alias="APP_DB_PATH")
+    app_db_path: str = Field(default="./data/delivery_ai.sqlite3", alias="APP_DB_PATH")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_embedding_model: str = Field(
         default="text-embedding-3-small",
         alias="OPENAI_EMBEDDING_MODEL",
     )
-    openai_embedding_dimensions: int = Field(
-        default=1536,
-        alias="OPENAI_EMBEDDING_DIMENSIONS",
+    chroma_persist_directory: str = Field(
+        default="./data/chroma",
+        alias="CHROMA_PERSIST_DIRECTORY",
+    )
+    chroma_collection_name: str = Field(
+        default="delivery_knowledge_base",
+        alias="CHROMA_COLLECTION_NAME",
     )
     openai_stt_model: str = Field(
         default="gpt-4o-mini-transcribe",
@@ -77,7 +81,7 @@ class Settings(BaseSettings):
 
     @property
     def rag_configured(self) -> bool:
-        return bool(self.openai_api_key) and self.vector_search_enabled
+        return bool(self.openai_api_key) and self.chroma_enabled
 
     @property
     def database_url(self) -> str:
@@ -99,8 +103,8 @@ class Settings(BaseSettings):
         )
 
     @property
-    def vector_search_enabled(self) -> bool:
-        return self.database_backend == "postgresql"
+    def chroma_enabled(self) -> bool:
+        return bool(self.chroma_persist_directory) and bool(self.chroma_collection_name)
 
     @property
     def outbound_call_configured(self) -> bool:

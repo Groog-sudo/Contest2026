@@ -1,192 +1,66 @@
-# 시스템 아키텍처 명세서
+﻿# Architecture
 
-> 프로젝트: AI 활용 차세대 교육 솔루션 - AI 전화 멘토링 시스템  
-> 버전: `0.3.0`  
-> 최종 수정일: `2026-04-08`  
-> 상태: STT/TTS/Storage/Queue 워커/대시보드 시계열 + PostgreSQL/pgvector RAG 반영 완료
+> 버전: `0.5.0`  
+> 마지막 수정일: `2026-04-09`  
+> 상태: `Delivery Issue Domain 적용 완료`
 
----
+## 1. 개요/목표
 
-## 1. 아키텍처 목표
+본 아키텍처는 배달 주문 이슈 접수/분류/전달 자동화를 목적으로 하며, 다음을 보장합니다.
 
-본 시스템은 다음의 폐쇄 루프를 구현하는 것을 목표로 합니다.
+1. 고객 인입부터 이슈 분석까지 단일 플로우
+2. PostgreSQL(정형) + ChromaDB(벡터) 이중 저장 구조
+3. STT/TTS/Queue 연계 확장 가능한 파이프라인
 
-1. 상담 신청 접수
-2. AI 멘토링 콜 요청
-3. 통화 기록(STT) 저장
-4. 상담 메모리 + 커리큘럼 기반 추천
-5. TTS 기반 음성 안내 확장
+## 2. 현재 구현 범위
 
----
+- Frontend: 리드 접수, 콜 요청, 이슈 분석 확인, 지식 문서 업로드, 대시보드
+- Backend API: leads / calls / analyses / documents / queue / dashboard / health
+- Service: `backend/app/services/delivery_issue_service.py`
+- Repository: `backend/app/db/repository.py`
 
-## 2. 시스템 구성도
+## 3. 모듈 구성
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (React)                         │
-│      Lead Capture / Call Request / Knowledge Upload UI          │
-└──────────────┬──────────────────────────────────┬───────────────┘
-               │ REST API (JSON / multipart)      │
-               ▼                                   ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                    Backend (FastAPI)                              │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐    │
-│  │                    API Layer (v1)                         │    │
-│  │  /leads/register /calls/request                           │    │
-│  │  /calls/recordings/upload /calls/transcripts/ingest       │    │
-│  │  /calls/tts/preview /queue/tasks /queue/process           │    │
-│  │  /queue/workers/run /dashboard/metrics                    │    │
-│  │  /assessments/level-test /documents/upload                │    │
-│  └──────────────────────────────┬────────────────────────────┘    │
-│                                 ▼                                 │
-│  ┌──────────────────────────────────────────────────────────┐    │
-│  │             Service Layer (MentoringService)             │    │
-│  │  - 리드 등록                                             │    │
-│  │  - 콜 스크립트 생성                                      │    │
-│  │  - 전사 저장 및 요약                                     │    │
-│  │  - 레벨 평가 및 추천                                     │    │
-│  └──────────┬───────────────────────────┬───────────────────┘    │
-│             ▼                           ▼                        │
-│  ┌──────────────────────┐   ┌────────────────────────────────┐   │
-│  │ PostgreSQL Repository│   │ External Clients               │   │
-│  │  - leads             │   │ - STT client (mock/real)       │   │
-│  │  - calls             │   │ - TTS client (mock/real)       │   │
-│  │  - transcript turns  │   │ - OpenAI Embeddings            │   │
-│  │  - assessments       │   │ - Object storage (local/s3)    │   │
-│  │  - knowledge_docs    │   │ - Call provider (planned)      │   │
-│  │  - recordings/tasks  │   │                                │   │
-│  └──────────────────────┘   └────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 3. 레이어 구조
-
-| 계층 | 책임 | 주요 파일 |
+| 레이어 | 책임 | 주요 파일 |
 | --- | --- | --- |
-| Presentation | 상담 입력/요청 UI | `frontend/src/features/*` |
-| API | 요청/응답 계약 및 라우팅 | `backend/app/api/v1/endpoints/*` |
-| Service | 도메인 흐름 오케스트레이션 | `backend/app/services/mentoring_service.py` |
-| Data | 영속 저장소 | `backend/app/db/repository.py` |
-| External Client | STT/TTS/통신 연동 포인트 | `backend/app/clients/*.py` |
-| Worker | 큐 작업 배치 실행 | `backend/app/workers/queue_worker.py` |
+| API | 요청/응답 계약 | `backend/app/api/v1/endpoints/*` |
+| Service | 도메인 오케스트레이션 | `backend/app/services/delivery_issue_service.py` |
+| Repository | DB 접근 및 집계 | `backend/app/db/repository.py` |
+| RAG | 문서 로딩/청킹/검색 | `backend/app/rag/*` |
+| External Client | STT/TTS/Storage | `backend/app/clients/*` |
+| Worker | 큐 처리 | `backend/app/workers/queue_worker.py` |
 
----
+## 4. API/데이터 흐름
 
-## 4. 핵심 컴포넌트
+1. `POST /leads/register`
+2. `POST /calls/request`
+3. (옵션) `POST /calls/recordings/upload` -> `async_tasks` 생성
+4. `POST /calls/transcripts/ingest`
+5. `POST /analyses/analyze` -> `incident_analyses` 저장
+6. `GET /dashboard/metrics`로 운영 지표 확인
 
-### 4.1 MentoringService
+## 5. 데이터 저장 전략
 
-- 리드 등록 후 DB 저장
-- 콜 스크립트 생성 및 상태 판정 (`drafted`, `script_ready`, `queued`)
-- 전사 텍스트를 turn 단위로 저장하고 요약 생성
-- 레벨 테스트 점수 정규화 후 추천 과정 생성
-- TTS 프리뷰 URL 생성
-- 녹취 업로드 -> 저장소 적재 -> `stt_transcription` 큐 등록
-- 큐 재시도 정책 적용 (`QUEUE_MAX_ATTEMPTS`)
+### 5.1 PostgreSQL
 
-### 4.2 MentoringRepository (PostgreSQL + SQLite fallback)
+- 운영 원장 데이터 저장
+- 분석 결과는 `incident_analyses` 테이블에 저장
+- 큐/전사/파일 메타데이터는 별도 테이블 유지
 
-초기 실행 시 스키마를 자동 생성합니다.
+### 5.2 ChromaDB
 
-- `leads`
-- `calls`
-- `call_transcript_turns`
-- `assessments`
-- `knowledge_documents`
-- `knowledge_document_chunks`
-- `recordings`
-- `async_tasks`
+- 문서 임베딩 저장 및 검색
+- 컬렉션: `CHROMA_COLLECTION_NAME`
+- 경로: `CHROMA_PERSIST_DIRECTORY`
 
-운영 환경에서는 PostgreSQL + pgvector를 사용하고, 테스트/로컬 fallback으로 SQLite를 유지합니다.
+## 6. 검증 상태
 
-### 4.3 STT/TTS Client
+- Backend pytest 통과 (`19 passed`)
+- Frontend build 통과
+- 기준일: `2026-04-09`
 
-- STT:
-  - provider `mock`: 고정 전사 텍스트 반환
-  - provider `openai`: `OPENAI_STT_MODEL`로 전사
-  - key 우선순위: `STT_PROVIDER_API_KEY` -> `OPENAI_API_KEY`
-- TTS:
-  - provider `mock`: 프리뷰 바이트 생성
-  - provider `openai`: `OPENAI_TTS_MODEL`로 mp3 합성
-  - key 우선순위: `TTS_PROVIDER_API_KEY` -> `OPENAI_API_KEY`
-- 상세 구현 명세: `docs/media-pipeline-spec.md`
+## 7. 확장 계획
 
-### 4.4 Object Storage Client
-
-- provider `local`: 로컬 디렉터리에 파일 저장
-- provider `s3`: `boto3` 기반 오브젝트 저장/조회
-- 녹취 저장 키: `recordings/{lead_id}/{call_id}/{uuid}{ext}`
-- TTS 프리뷰 키: `tts-previews/{uuid}.mp3`
-
-### 4.5 Queue Worker
-
-- `/queue/workers/run` 또는 업로드 후 BackgroundTask로 실행
-- `queued` 상태 작업을 순차 처리
-- 실패 시 재큐잉 또는 최종 실패로 전이
-
----
-
-## 5. 데이터 흐름
-
-### 5.1 리드 접수
-
-`LeadCapturePanel -> POST /leads/register -> leads 저장`
-
-### 5.2 콜 요청
-
-`CallRequestPanel -> POST /calls/request -> calls 저장 -> 스크립트/근거 반환`
-
-### 5.3 통화 전사 적재
-
-`POST /calls/recordings/upload -> object storage 저장 -> async_tasks 큐 등록 -> worker 처리 -> call_transcript_turns 저장`
-
-### 5.4 레벨 평가 및 추천
-
-`POST /assessments/level-test -> 점수 정규화 -> 레벨 판정 -> assessments 저장`
-
-### 5.5 TTS 프리뷰
-
-`POST /calls/tts/preview -> TTS 합성 -> 저장소 적재 -> 음성 URL 메타데이터 반환`
-
----
-
-## 6. 환경 변수 설계
-
-| 그룹 | 변수 |
-| --- | --- |
-| DB | `APP_DATABASE_URL`, `APP_DB_PATH` |
-| RAG | `OPENAI_API_KEY`, `OPENAI_EMBEDDING_MODEL`, `OPENAI_EMBEDDING_DIMENSIONS` |
-| STT | `STT_PROVIDER_NAME`, `STT_PROVIDER_API_KEY`, `OPENAI_STT_MODEL` |
-| TTS | `TTS_PROVIDER_NAME`, `TTS_PROVIDER_API_KEY`, `OPENAI_TTS_MODEL` |
-| Storage | `OBJECT_STORAGE_PROVIDER`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_ENDPOINT_URL`, `OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY`, `OBJECT_STORAGE_LOCAL_DIR`, `OBJECT_STORAGE_PUBLIC_BASE_URL` |
-| Queue | `QUEUE_AUTO_PROCESS`, `QUEUE_MAX_ATTEMPTS` |
-| Call | `CALL_PROVIDER_NAME`, `CALL_PROVIDER_API_KEY`, `OUTBOUND_CALL_FROM_NUMBER` |
-| Common | `FRONTEND_ORIGINS` |
-
-### 6.1 런타임 설정 파일
-
-- Frontend는 `frontend/.env`를 기준으로 `VITE_API_BASE_URL`을 읽습니다.
-- Backend는 `backend/.env`를 기준으로 `APP_DATABASE_URL`, `OPENAI_*`, `FRONTEND_ORIGINS`를 읽습니다.
-- 루트 `.env`는 개발용 공용 참조본으로 사용할 수 있지만, 실제 실행 시에는 각 앱 디렉터리의 `.env`를 우선 정렬하는 구성을 권장합니다.
-- PostgreSQL 프로필은 `APP_DATABASE_URL`이 `vector` 확장이 활성화된 인스턴스를 가리켜야 하며, 로컬 검증 예시는 `postgresql://postgres:<password>@127.0.0.1:5433/contest2026`입니다.
-
----
-
-## 7. 현재 한계
-
-- STT/TTS는 `openai`/`mock` 중심이며 기타 상용 프로바이더는 placeholder 수준
-- 큐 워커는 API 기반 배치 실행이며 외부 스케줄러 상시 구동은 별도 구성 필요
-- 추천 로직은 규칙 기반(점수 구간)이며 학습형 모델은 미적용
-- 대화 히스토리 요약 고도화 및 검색 가중치 조정 미적용
-
----
-
-## 8. 확장 계획
-
-1. 외부 스케줄러와 큐 워커 연동 (Cron/APScheduler/Cloud Scheduler)
-2. STT/TTS 다중 프로바이더 어댑터 추가
-3. 상담 메모리 + 커리큘럼 하이브리드 RAG 검색 고도화
-4. 추천 결과의 상담 전환율/학습 지속률 지표 고도화
+1. 멀티 모델 기반 분류 재검증 레이어 추가
+2. 고위험 이슈 실시간 알림/티켓 연동
+3. 운영 DB 마이그레이션 자동 적용(릴리즈 파이프라인)

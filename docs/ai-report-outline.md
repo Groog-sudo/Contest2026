@@ -1,100 +1,77 @@
-# AI 리포트 작성 템플릿
+﻿# AI 리포트 작성 템플릿
 
-> 문서 목적: 공모전 제출용 보고서를 현재 구현 상태에 맞춰 빠르게 정리하기 위한 양식
-> 최종 수정일: `2026-04-08`
+> 공모전 제출용 템플릿  
+> 버전: `0.5.0`  
+> 마지막 수정일: `2026-04-09`
 
----
-
-## 1. 프로젝트 개요
+## 1. 메타 정보
 
 - 프로젝트명:
-- 한 줄 소개:
+- 팀명:
+- 제출일:
+- 버전:
+- 데모 링크:
+- 저장소 링크:
+
+## 2. 개요/목표
+
 - 해결하려는 문제:
-- 주요 사용자:
-- 적용 환경(학원/온라인/혼합):
+- 대상 사용자:
+- 핵심 목표(3줄 이내):
 
----
+## 3. 현재 구현 범위
 
-## 2. 문제 정의
+- [ ] 고객 불만 리드 접수
+- [ ] 상담 스크립트 생성
+- [ ] STT 전사 입력/저장
+- [ ] 이슈 분석 JSON 생성
+- [ ] 책임 주체별 전달 문안 생성
+- [ ] 운영 대시보드 지표 조회
+- [ ] 문서 RAG 업로드/검색
 
-- 기존 상담/영업 프로세스의 병목:
-- 통화 기록 누락으로 발생하는 한계:
-- 수강생 수준 미파악으로 인한 과정 미스매치:
+## 4. 시스템/API/데이터 흐름
 
----
+### 4.1 주요 API
 
-## 3. 제안 솔루션
+- `POST /api/v1/leads/register`
+- `POST /api/v1/calls/request`
+- `POST /api/v1/calls/transcripts/ingest`
+- `POST /api/v1/analyses/analyze`
+- `GET /api/v1/dashboard/metrics`
 
-- 솔루션 핵심 개념:
-- 사용자 여정:
-  1. 리드 접수
-  2. AI 멘토링 콜 요청
-  3. STT 기반 통화 기록 저장
-  4. 레벨테스트 + 과정 추천
-  5. TTS 기반 음성 안내 확장
-- 기대 효과:
+### 4.2 데이터 저장
 
----
+- PostgreSQL: `leads`, `calls`, `incident_analyses`, `async_tasks` 등
+- ChromaDB: 문서 임베딩 컬렉션
 
-## 4. AI 기술 적용 방식
+### 4.3 운영 DB 마이그레이션
 
-- RAG 적용 대상(커리큘럼/FAQ/상담이력):
-- STT 적용 방식(녹취 -> 전사 -> 요약):
-- TTS 적용 방식(스크립트 -> 음성):
-- 추천 로직(규칙 기반/모델 기반):
+- SQL: `backend/sql/migrations/20260409_postgres_legacy_schema_to_delivery_issue.sql`
+- 가이드: `backend/sql/migrations/README.md`
 
----
+## 5. 환경 변수/실행 환경
 
-## 5. 시스템 구성
+- DB: `APP_DATABASE_URL`, `APP_DB_PATH`
+- Chroma: `CHROMA_PERSIST_DIRECTORY`, `CHROMA_COLLECTION_NAME`
+- AI: `OPENAI_API_KEY`, `OPENAI_EMBEDDING_MODEL`, `OPENAI_STT_MODEL`, `OPENAI_TTS_MODEL`
+- Queue/Storage: `QUEUE_*`, `OBJECT_STORAGE_*`
 
-- Frontend:
-- Backend:
-- DB 저장 구조:
-- 외부 연동(OpenAI/PostgreSQL+pgvector/STT/TTS/통신사):
+## 6. 테스트/검증 상태
 
----
+- Backend: `python -m pytest -q` 결과
+- Frontend: `npm run build` 결과
+- 기준일:
 
-## 6. 구현 범위 및 결과
+## 7. 확장 계획
 
-- 구현 완료 항목:
-  - 리드 등록 API
-  - 콜 요청 API
-  - 전사 적재 API
-  - TTS 프리뷰 API
-  - 레벨테스트 추천 API
-  - 문서 업로드 API
-- 테스트 결과:
-- 시연 시나리오:
+1. 분류 정확도 개선(룰 + LLM 앙상블)
+2. 고위험 이슈 실시간 알림
+3. 운영 시스템 연동(티켓/CRM)
+4. 정책 문서 버전 기반 RAG 개선
 
----
+## 8. 참고 문서
 
-## 7. 차별성
-
-- 일반 콜센터 대비 차별점:
-- 교육 커리큘럼 기반 추천 강점:
-- 상담 히스토리 누적 기반 개인화 전략:
-
----
-
-## 8. 한계와 리스크
-
-- 현재 스캐폴드 한계:
-- 실제 STT/TTS/통신 연동 시 고려사항:
-- 개인정보/녹취 데이터 보안 이슈:
-
----
-
-## 9. 향후 계획
-
-1. 실 STT/TTS/통신사 SDK 연동
-2. 상담 이력 기반 RAG 검색 정확도 개선
-3. 레벨테스트 문항/추천 로직 고도화
-4. 운영 대시보드 및 성과지표 시각화
-
----
-
-## 부록
-
-- API 문서 링크: `docs/api-specification.md`
-- 아키텍처 문서 링크: `docs/architecture.md`
-- 실행/환경 변수 참고: `README.md`
+- 아키텍처: `docs/architecture.md`
+- API 명세: `docs/api-specification.md`
+- 미디어 파이프라인: `docs/media-pipeline-spec.md`
+- 테스트 전략: `docs/testing-strategy.md`

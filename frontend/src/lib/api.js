@@ -59,7 +59,7 @@ export async function registerLead(payload) {
   return parseResponse(response);
 }
 
-export async function requestMentoringCall(payload) {
+export async function requestComplaintCall(payload) {
   const response = await fetch(`${API_BASE_URL}/api/v1/calls/request`, {
     body: JSON.stringify(payload),
     headers: {
@@ -109,8 +109,8 @@ export async function previewCallTts(payload) {
   return parseResponse(response);
 }
 
-export async function evaluateLevelTest(payload) {
-  const response = await fetch(`${API_BASE_URL}/api/v1/assessments/level-test`, {
+export async function analyzeIncident(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/analyses/analyze`, {
     body: JSON.stringify(payload),
     headers: {
       'Content-Type': 'application/json',

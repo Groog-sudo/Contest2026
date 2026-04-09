@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+﻿from fastapi import APIRouter, Depends
 
 from app.core.config import Settings, get_settings
 from app.schemas.queue import (
@@ -8,7 +8,7 @@ from app.schemas.queue import (
     QueueWorkerRunRequest,
     QueueWorkerRunResponse,
 )
-from app.services.mentoring_service import MentoringService
+from app.services.delivery_issue_service import DeliveryIssueService
 
 router = APIRouter()
 
@@ -17,7 +17,7 @@ router = APIRouter()
 async def list_queue_tasks(
     settings: Settings = Depends(get_settings),
 ) -> QueueTaskListResponse:
-    service = MentoringService(settings)
+    service = DeliveryIssueService(settings)
     return service.list_queue_tasks()
 
 
@@ -26,7 +26,7 @@ async def process_queue_task(
     payload: QueueTaskProcessRequest,
     settings: Settings = Depends(get_settings),
 ) -> QueueTaskProcessResponse:
-    service = MentoringService(settings)
+    service = DeliveryIssueService(settings)
     return service.process_queue_task(payload.task_id)
 
 
@@ -35,5 +35,6 @@ async def run_queue_worker(
     payload: QueueWorkerRunRequest,
     settings: Settings = Depends(get_settings),
 ) -> QueueWorkerRunResponse:
-    service = MentoringService(settings)
+    service = DeliveryIssueService(settings)
     return service.process_pending_queue_tasks(limit=payload.limit)
+

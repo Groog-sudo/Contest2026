@@ -11,16 +11,20 @@ class CallSourceItem(BaseModel):
 
 class CallRequest(BaseModel):
     lead_id: str = Field(..., min_length=1)
-    student_name: str = Field(..., min_length=1, max_length=50)
+    customer_name: str = Field(..., min_length=1, max_length=50)
     phone_number: str = Field(..., min_length=8, max_length=30)
-    course_interest: str = Field(..., min_length=1, max_length=120)
-    student_question: str = Field(..., min_length=1, max_length=500)
+    order_id: str | None = Field(default=None, max_length=80)
+    incident_summary: str = Field(..., min_length=1, max_length=1000)
+    requested_resolution: str | None = Field(default=None, max_length=80)
     top_k: int = Field(default=3, ge=1, le=10)
 
-    @field_validator("lead_id", "student_name", "course_interest", "student_question")
+    @field_validator("lead_id", "customer_name", "order_id", "incident_summary", "requested_resolution")
     @classmethod
-    def trim_text(cls, value: str) -> str:
-        return value.strip()
+    def trim_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        trimmed = value.strip()
+        return trimmed or None
 
     @field_validator("phone_number")
     @classmethod
@@ -41,7 +45,7 @@ class CallRequestResponse(BaseModel):
 
 
 class CallTranscriptTurn(BaseModel):
-    speaker: Literal["student", "ai", "counselor"] = "student"
+    speaker: Literal["customer", "ai", "counselor"] = "customer"
     utterance: str = Field(..., min_length=1, max_length=2000)
 
     @field_validator("utterance")
@@ -67,7 +71,8 @@ class CallTranscriptIngestRequest(BaseModel):
     def trim_optional_text(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        return value.strip()
+        trimmed = value.strip()
+        return trimmed or None
 
     @model_validator(mode="after")
     def validate_sources(self) -> "CallTranscriptIngestRequest":
@@ -85,7 +90,7 @@ class CallTranscriptIngestResponse(BaseModel):
 
 class TTSPreviewRequest(BaseModel):
     script: str = Field(..., min_length=1, max_length=2000)
-    voice: str = Field(default="mentor-ko", min_length=1, max_length=40)
+    voice: str = Field(default="agent-ko", min_length=1, max_length=40)
 
     @field_validator("script", "voice")
     @classmethod

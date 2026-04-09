@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import IncidentAnalysisPanel from './features/analysis/IncidentAnalysisPanel.jsx';
 import AppShell from './components/layout/AppShell.jsx';
 import CallRequestPanel from './features/calls/CallRequestPanel.jsx';
 import LeadCapturePanel from './features/leads/LeadCapturePanel.jsx';
@@ -10,6 +11,7 @@ import { API_BASE_URL, fetchHealth } from './lib/api.js';
 export default function App() {
   const [backendStatus, setBackendStatus] = useState('checking');
   const [latestLead, setLatestLead] = useState(null);
+  const [latestCallContext, setLatestCallContext] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +38,8 @@ export default function App() {
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
           <LeadCapturePanel onLeadCaptured={setLatestLead} />
-          <CallRequestPanel lead={latestLead} />
+          <CallRequestPanel lead={latestLead} onCallReady={setLatestCallContext} />
+          <IncidentAnalysisPanel lead={latestLead} callContext={latestCallContext} />
         </div>
 
         <div className="space-y-6">

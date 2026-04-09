@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+﻿from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.core.config import Settings, get_settings
 from app.schemas.document import UploadDocumentResponse
-from app.services.mentoring_service import MentoringService
+from app.services.delivery_issue_service import DeliveryIssueService
 
 router = APIRouter()
 
@@ -12,5 +12,6 @@ async def upload_document(
     file: UploadFile = File(...),
     settings: Settings = Depends(get_settings),
 ) -> UploadDocumentResponse:
-    service = MentoringService(settings)
+    service = DeliveryIssueService(settings)
     return await service.ingest(file)
+

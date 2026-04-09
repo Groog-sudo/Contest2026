@@ -1,11 +1,13 @@
 /**
  * @typedef {Object} LeadRegistrationRequest
- * @property {string} student_name
+ * @property {string} customer_name
  * @property {string} phone_number
- * @property {string} course_interest
- * @property {string} learning_goal
- * @property {string | null | undefined} [preferred_call_time]
- * @property {boolean} consent_to_call
+ * @property {string | undefined} [order_id]
+ * @property {string[] | undefined} [order_items]
+ * @property {string} incident_summary
+ * @property {string | undefined} [requested_resolution]
+ * @property {string | undefined} [preferred_contact_time]
+ * @property {boolean} consent_to_contact
  */
 
 /**
@@ -25,10 +27,11 @@
 /**
  * @typedef {Object} CallRequest
  * @property {string} lead_id
- * @property {string} student_name
+ * @property {string} customer_name
  * @property {string} phone_number
- * @property {string} course_interest
- * @property {string} student_question
+ * @property {string | undefined} [order_id]
+ * @property {string} incident_summary
+ * @property {string | undefined} [requested_resolution]
  * @property {number | undefined} [top_k]
  */
 
@@ -42,6 +45,34 @@
  */
 
 /**
+ * @typedef {Object} IncidentAnalysisRequest
+ * @property {string} lead_id
+ * @property {string | undefined} [call_id]
+ * @property {string | undefined} [customer_message]
+ * @property {string | undefined} [transcript_text]
+ * @property {string | undefined} [order_id]
+ * @property {string[] | undefined} [order_items]
+ * @property {'photo' | 'video' | 'none' | 'unknown' | undefined} [evidence_available]
+ * @property {string[] | undefined} [requested_resolution]
+ */
+
+/**
+ * @typedef {Object} IncidentAnalysisResponse
+ * @property {string} summary_for_customer
+ * @property {string} incident_overview
+ * @property {'merchant_issue' | 'delivery_issue' | 'platform_issue' | 'multi_party_issue' | 'needs_review'} primary_category
+ * @property {string[]} subcategories
+ * @property {string[]} responsible_parties
+ * @property {'low' | 'medium' | 'high' | 'critical'} severity
+ * @property {boolean} safety_flag
+ * @property {Object} order_info
+ * @property {Object} issue_details
+ * @property {Object} merchant_feedback
+ * @property {Object} delivery_feedback
+ * @property {Object} platform_feedback
+ */
+
+/**
  * @typedef {Object} UploadDocumentResponse
  * @property {string} document_id
  * @property {'accepted' | 'knowledge_base_pending'} status
@@ -49,7 +80,7 @@
 
 /**
  * @typedef {Object} CallTranscriptTurn
- * @property {'student' | 'ai' | 'counselor'} speaker
+ * @property {'customer' | 'ai' | 'counselor'} speaker
  * @property {string} utterance
  */
 
@@ -86,29 +117,6 @@
  */
 
 /**
- * @typedef {Object} SkillAnswer
- * @property {string} area
- * @property {number} score
- */
-
-/**
- * @typedef {Object} LevelAssessmentRequest
- * @property {string} lead_id
- * @property {SkillAnswer[]} answers
- * @property {string | undefined} [additional_context]
- */
-
-/**
- * @typedef {Object} LevelAssessmentResponse
- * @property {string} assessment_id
- * @property {'beginner' | 'intermediate' | 'advanced'} level
- * @property {number} score
- * @property {string} recommended_course
- * @property {string} mentoring_plan
- * @property {string[]} rag_context_ids
- */
-
-/**
  * @typedef {Object} RecordingUploadResponse
  * @property {string} recording_id
  * @property {'queued'} status
@@ -122,17 +130,18 @@
  * @property {string} date
  * @property {number} leads
  * @property {number} calls
- * @property {number} assessments
+ * @property {number} analyses
+ * @property {number} high_risk
  */
 
 /**
  * @typedef {Object} DashboardMetricsResponse
  * @property {number} total_leads
  * @property {number} leads_with_calls
- * @property {number} leads_with_assessments
+ * @property {number} leads_with_analyses
  * @property {number} conversion_rate
- * @property {number} completion_rate
- * @property {number} avg_assessment_score
+ * @property {number} resolution_rate
+ * @property {number} high_risk_cases
  * @property {number} queued_tasks
  * @property {number} processing_tasks
  * @property {number} failed_tasks

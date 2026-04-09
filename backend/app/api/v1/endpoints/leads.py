@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+﻿from fastapi import APIRouter, Depends
 
 from app.core.config import Settings, get_settings
 from app.schemas.lead import LeadRegistrationRequest, LeadRegistrationResponse
-from app.services.mentoring_service import MentoringService
+from app.services.delivery_issue_service import DeliveryIssueService
 
 router = APIRouter()
 
@@ -12,5 +12,6 @@ async def register_lead(
     payload: LeadRegistrationRequest,
     settings: Settings = Depends(get_settings),
 ) -> LeadRegistrationResponse:
-    service = MentoringService(settings)
+    service = DeliveryIssueService(settings)
     return service.register_lead(payload)
+

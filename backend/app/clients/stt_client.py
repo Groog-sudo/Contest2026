@@ -22,8 +22,8 @@ class STTClient:
     ) -> str:
         if self.provider_name == "mock":
             return (
-                "student: 안녕하세요. 비전공자인데 AI 과정을 어디서부터 시작하면 될까요?\n"
-                "ai: 현재 학습 목표와 주당 학습 시간을 먼저 확인하고 맞춤 과정을 제안드릴게요."
+                "customer: 배달이 너무 늦었고 음식도 많이 식었습니다.\n"
+                "ai: 불편을 드려 죄송합니다. 주문번호와 원하시는 조치를 먼저 확인하겠습니다."
             )
 
         if self.provider_name == "openai":
@@ -37,7 +37,7 @@ class STTClient:
             return self._transcribe_with_openai(blob=blob, filename=filename)
 
         return (
-            "student: STT provider response placeholder.\n"
+            "customer: STT provider response placeholder.\n"
             f"ai: recording_url={recording_url}"
         )
 

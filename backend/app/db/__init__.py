@@ -1,3 +1,3 @@
-from app.db.repository import MentoringRepository
+from app.db.repository import DeliveryIssueRepository
 
-__all__ = ["MentoringRepository"]
+__all__ = ["DeliveryIssueRepository"]
